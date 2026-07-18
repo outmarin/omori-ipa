@@ -87,6 +87,18 @@
     // =====================================================================
     stat("http phase: real run");
 
+    // capture real errors (engine hides them behind its red screen)
+    window.addEventListener("error", function (ev) {
+        stat("JS ERR: " + (ev.message || "") + " @ " + (ev.filename || "").split("/").pop() + ":" + ev.lineno +
+             (ev.error && ev.error.stack ? " | " + String(ev.error.stack).replace(/\n/g, " << ").slice(0, 300) : ""));
+    });
+    if (typeof SceneManager !== "undefined") {
+        var _ce = SceneManager.catchException;
+        SceneManager.catchException = function (e) { stat("SM.catch: " + (e && e.message ? e.message : e) + " | " + String(e && e.stack || "").replace(/\n/g, " << ").slice(0, 350)); return _ce ? _ce.apply(this, arguments) : undefined; };
+        var _frames = 0, _um = SceneManager.updateMain;
+        if (_um) SceneManager.updateMain = function () { _frames++; window.__iosFrames = _frames; return _um.apply(this, arguments); };
+    }
+
     function baseName(p) { return String(p).replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop(); }
     window._SAYGEXES = window._SAYGEXES || {};
     function cacheSet(name, exists, content) {
@@ -153,8 +165,12 @@
                  " db=" + ((typeof DataManager !== "undefined" && DataManager.isDatabaseLoaded) ? DataManager.isDatabaseLoaded() : "?") +
                  " font=" + (typeof Graphics !== "undefined" && Graphics.isFontLoaded ? Graphics.isFontLoaded("GameFont") : "?") +
                  " ImgReady=" + imReady + " SceneBaseReady=" + sbReady +
-                 " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}" +
-                 " errURLs=" + JSON.stringify(Object.keys(imgStat.errURLs).slice(0, 6)));
+                 " started=" + SceneManager._sceneStarted +
+                 " next=" + (SceneManager._nextScene && SceneManager._nextScene.constructor && SceneManager._nextScene.constructor.name) +
+                 " changing=" + (SceneManager.isSceneChanging && SceneManager.isSceneChanging()) +
+                 " sceneReady=" + (s && s.isReady ? s.isReady() : "?") +
+                 " frames=" + (window.__iosFrames || 0) +
+                 " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}");
         } catch (e) { stat("probe err: " + e.message); }
     }
 
