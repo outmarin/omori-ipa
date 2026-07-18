@@ -167,6 +167,18 @@
         Bitmap.prototype._onLoad = function () { imgStat.ok++; return _l && _l.apply(this, arguments); };
         Bitmap.__iosHooked = true;
     }
+    function stuckImages() {
+        var out = [];
+        try {
+            var items = ImageManager._imageCache && ImageManager._imageCache._items;
+            for (var k in items) {
+                var b = items[k].bitmap;
+                if (b && b._loadingState && b._loadingState !== "loaded" && b._loadingState !== "none")
+                    out.push((b._url || k).split("/").slice(-2).join("/") + ":" + b._loadingState);
+            }
+        } catch (e) { out.push("err:" + e.message); }
+        return out.slice(0, 8);
+    }
     function probe(tag) {
         try {
             var s = SceneManager._scene, sc = s && s.constructor && s.constructor.name;
@@ -186,7 +198,8 @@
                  " frames=" + (window.__iosFrames || 0) +
                  " csN=" + (window.__csN || 0) + " csBusy=" + window.__csBusy + " csReqQ=" + window.__csReqQ +
                  " mSafari=" + (typeof Utils !== "undefined" && Utils.isMobileSafari ? Utils.isMobileSafari() : "?") +
-                 " accum=" + (SceneManager._accumulator && SceneManager._accumulator.toFixed ? SceneManager._accumulator.toFixed(3) : SceneManager._accumulator) +
+                 " imReadyNow=" + (typeof ImageManager !== "undefined" && ImageManager.isReady ? ImageManager.isReady() : "?") +
+                 " stuck=" + JSON.stringify(stuckImages()) +
                  " img{ok:" + imgStat.ok + "}");
         } catch (e) { stat("probe err: " + e.message); }
     }
