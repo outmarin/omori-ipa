@@ -110,6 +110,9 @@
     var syncCache = window.__IOS_SYNC_FILES || {}; // "data/Notes.yaml" -> text
     var dirCache = window.__IOS_SYNC_DIRS || {};   // "Languages/en" -> [files]
 
+    // XHR shim activity counters (diagnostics)
+    var xhr = { ok: 0, fail: 0, pending: 0, lastFail: "" };
+
     function installXHRShim() {
         var Real = window.__RealXHR || window.XMLHttpRequest;
         if (window.XMLHttpRequest && window.XMLHttpRequest.__iosShim) return;
@@ -171,9 +174,14 @@
                 return;
             }
             var kind = this.responseType === "arraybuffer" ? "arraybuffer" : this.responseType === "blob" ? "blob" : "text";
+            xhr.pending++;
             readBundle(rel, kind).then(function (res) {
+                xhr.pending--; xhr.ok++;
                 self._done(200, res, kind === "text" ? res : null);
-            }, function () { self._done(404, null, ""); });
+            }, function (e) {
+                xhr.pending--; xhr.fail++; xhr.lastFail = rel + " (" + (e && e.message) + ")";
+                self._done(404, null, "");
+            });
         };
 
         XHR.UNSENT = 0; XHR.OPENED = 1; XHR.HEADERS_RECEIVED = 2; XHR.LOADING = 3; XHR.DONE = 4;
@@ -283,6 +291,19 @@
         if (savesReady) return; savesReady = true;
         installXHRShim(); installFsOverride(); installNativeFunctions(); writeStatus();
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
+        // diagnostics: where does boot get to?
+        [4000, 10000, 20000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
+    }
+    function probe(tag) {
+        try {
+            var s = SceneManager._scene, sc = s && s.constructor && s.constructor.name;
+            var db = (typeof DataManager !== "undefined" && DataManager.isDatabaseLoaded) ? DataManager.isDatabaseLoaded() : "?";
+            stat("PROBE " + tag + ": scene=" + sc + " dbLoaded=" + db +
+                 " $dataSystem=" + (typeof $dataSystem !== "undefined" && !!$dataSystem) +
+                 " $dataMap=" + (typeof $dataMap !== "undefined" && !!$dataMap) +
+                 " xhr{ok:" + xhr.ok + ",fail:" + xhr.fail + ",pending:" + xhr.pending + "}" +
+                 (xhr.lastFail ? " lastFail=" + xhr.lastFail : ""));
+        } catch (e) { stat("probe err: " + e.message); }
     }
     SceneManager.terminate = noop;
 

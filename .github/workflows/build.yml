@@ -101,7 +101,7 @@ jobs:
           # NOTE: no --console (it blocks until the app exits); launch returns the pid
           xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
           cat launch.txt
-          for t in 15 30 45; do
+          for t in 15 35 60 90; do
             sleep $((t - ${last:-0})); last=$t
             xcrun simctl io "$UDID" screenshot "shot_${t}s.png" || true
             echo "screenshot at ${t}s"
