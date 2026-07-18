@@ -91,7 +91,9 @@ jobs:
             --predicate 'processImagePath CONTAINS "OMORI" OR eventMessage CONTAINS "ios_compat" OR eventMessage CONTAINS "Scene"' > applog.txt 2>&1 &
           LOGPID=$!
           xcrun simctl install "$UDID" "$SIM_APP"
-          xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
+          # NOTE: no --console (it blocks until the app exits); launch returns the pid
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
+          cat launch.txt
           sleep 25; xcrun simctl io "$UDID" screenshot shot_25s.png || true
           sleep 20; xcrun simctl io "$UDID" screenshot shot_45s.png || true
           sleep 20; xcrun simctl io "$UDID" screenshot shot_65s.png || true
