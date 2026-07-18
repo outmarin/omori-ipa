@@ -168,8 +168,10 @@
                  " started=" + SceneManager._sceneStarted +
                  " next=" + (SceneManager._nextScene && SceneManager._nextScene.constructor && SceneManager._nextScene.constructor.name) +
                  " changing=" + (SceneManager.isSceneChanging && SceneManager.isSceneChanging()) +
-                 " busy=" + (s && s.isBusy ? s.isBusy() : "?") +
-                 " fade=" + (s && s._fadeDuration) +
+                 " realBusy=" + (SceneManager.isCurrentSceneBusy ? SceneManager.isCurrentSceneBusy() : "?") +
+                 " reqQ=" + (typeof ImageManager !== "undefined" && ImageManager._requestQueue && ImageManager._requestQueue._queue ? ImageManager._requestQueue._queue.length : "?") +
+                 " q0=" + (typeof ImageManager !== "undefined" && ImageManager._requestQueue && ImageManager._requestQueue._queue && ImageManager._requestQueue._queue[0] ? ImageManager._requestQueue._queue[0].key : "-") +
+                 " nextAtlas=" + (SceneManager._nextScene && SceneManager._nextScene.areAllRequiredAtlasLoaded ? SceneManager._nextScene.areAllRequiredAtlasLoaded() : "?") +
                  " frames=" + (window.__iosFrames || 0) +
                  " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}");
         } catch (e) { stat("probe err: " + e.message); }
