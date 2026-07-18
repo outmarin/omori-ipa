@@ -3,15 +3,15 @@
 //
 // Injected into index.html as a plain <script> right after js/main.js.
 //
-// Fixes three iOS-only problems (all no-ops on other platforms):
-//   1. Android-only API stubs so the port layer doesn't throw.
-//   2. Save I/O (NativeFunctions) on cordova-plugin-file @ documentsDirectory,
-//      LiveContainer-safe, with a preloaded synchronous cache.
-//   3. The boot crash: GTP_OmoriFixes reads data/*.yaml and Languages/<lang>/*
-//      via require('fs').readFileSync / readdirSync == SYNCHRONOUS XHR to
-//      file://, which WKWebView forbids ("send@[native code]"). We preload
-//      that bounded set from the app bundle via cordova-plugin-file (native
-//      read, not XHR) and serve readFileSync/readdirSync from a cache.
+// The core iOS problem: WKWebView forbids ALL XHR/fetch to file:// (sync AND
+// async) -> every asset the engine loads by XHR (database JSON, maps, audio
+// ogg) throws "send@[native code]". Images/video load via <img>/<video>
+// elements and are fine.
+//
+// Fix: intercept XMLHttpRequest and serve local URLs from the app bundle via
+// cordova-plugin-file (native file read, not XHR). Synchronous reads are served
+// from a cache preloaded before boot (yaml/Languages). Saves go to
+// documentsDirectory (LiveContainer-safe). All no-ops off iOS.
 //=============================================================================
 
 (function () {
@@ -40,101 +40,155 @@
     };
 
     // ---- path helpers ----------------------------------------------------
-    function norm(p) { // "./data/Notes.yaml" | "/x/Languages/en" -> "data/Notes.yaml"
-        return String(p).replace(/\\/g, "/").replace(/^\.?\/+/, "").replace(/\/+$/, "");
+    function toRel(url) { // any url -> "data/System.json" (www-relative) or null if remote
+        var u = String(url).split("?")[0].split("#")[0];
+        if (/^(https?|blob|data):/i.test(u)) return null;
+        if (/^file:\/\//i.test(u)) {
+            var i = u.indexOf("/www/");
+            return i >= 0 ? u.slice(i + 5) : u.replace(/^file:\/\/+/, "");
+        }
+        return u.replace(/^\.?\/+/, "");
     }
-    function baseName(p) { return norm(p).split("/").pop(); }
+    function baseName(p) { return String(p).replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop(); }
 
-    // =====================================================================
-    //  cordova-plugin-file readers (native, bypass WKWebView XHR entirely)
-    // =====================================================================
-    function readBundleText(relPath) { // Promise<string>
-        var url = cordova.file.applicationDirectory + "www/" + relPath;
+    // ---- cordova-plugin-file bundle readers (bypass WKWebView XHR) --------
+    function readBundle(rel, kind) { // kind: 'text' | 'arraybuffer' | 'blob' -> Promise
+        var url = cordova.file.applicationDirectory + "www/" + rel;
         return new Promise(function (resolve, reject) {
             window.resolveLocalFileSystemURL(url, function (entry) {
                 entry.file(function (file) {
+                    if (kind === "blob") return resolve(file); // File is a Blob
                     var r = new FileReader();
-                    r.onloadend = function () { resolve(r.result); };
-                    r.onerror = function () { reject(new Error("read " + relPath)); };
-                    r.readAsText(file);
+                    r.onerror = function () { reject(new Error("read " + rel)); };
+                    if (kind === "arraybuffer") { r.onloadend = function () { resolve(r.result); }; r.readAsArrayBuffer(file); }
+                    else { r.onloadend = function () { resolve(r.result); }; r.readAsText(file); }
                 }, reject);
             }, reject);
         });
     }
 
     // =====================================================================
-    //  3. Synchronous-read cache + fs override
+    //  XMLHttpRequest shim: local URLs -> file plugin; remote -> real XHR
     // =====================================================================
-    var syncCache = {};   // "data/Notes.yaml" -> text
-    var dirCache = {};    // "Languages/en"    -> ["a.yaml", ...]
+    var syncCache = {};   // "data/Notes.yaml" -> text (for synchronous XHR/readFileSync)
 
+    function installXHRShim() {
+        var Real = window.__RealXHR || window.XMLHttpRequest;
+        if (window.XMLHttpRequest && window.XMLHttpRequest.__iosShim) return;
+        window.__RealXHR = Real;
+
+        function XHR() { this.readyState = 0; this.status = 0; this.response = null;
+            this.responseText = ""; this.responseType = ""; this.responseURL = "";
+            this.onload = null; this.onerror = null; this.onreadystatechange = null; this.onprogress = null;
+            this.timeout = 0; this.withCredentials = false; this._h = { load: [], error: [], readystatechange: [] };
+            this._url = null; this._async = true; this._method = "GET"; this._real = null; }
+
+        XHR.prototype.open = function (method, url, async) {
+            this._method = (method || "GET").toUpperCase(); this._url = url; this._async = (async !== false);
+            var rel = toRel(url);
+            if (rel === null || this._method !== "GET") { this._real = new Real(); this._real.open(method, url, async); this._rel = null; }
+            else { this._rel = rel; }
+        };
+        XHR.prototype.setRequestHeader = function (k, v) { if (this._real) this._real.setRequestHeader(k, v); };
+        XHR.prototype.overrideMimeType = function (m) { if (this._real && this._real.overrideMimeType) this._real.overrideMimeType(m); };
+        XHR.prototype.getAllResponseHeaders = function () { return this._real ? this._real.getAllResponseHeaders() : ""; };
+        XHR.prototype.getResponseHeader = function (h) { return this._real ? this._real.getResponseHeader(h) : null; };
+        XHR.prototype.abort = function () { if (this._real) this._real.abort(); };
+        XHR.prototype.addEventListener = function (t, fn) { if (this._h[t]) this._h[t].push(fn); if (this._real) this._real.addEventListener(t, fn); };
+        XHR.prototype.removeEventListener = function (t, fn) { if (this._h[t]) this._h[t] = this._h[t].filter(function (f) { return f !== fn; }); if (this._real) this._real.removeEventListener(t, fn); };
+
+        XHR.prototype._fire = function (type) {
+            var e = { type: type, target: this, currentTarget: this };
+            if (type === "readystatechange" && this.onreadystatechange) this.onreadystatechange(e);
+            if (type === "load" && this.onload) this.onload(e);
+            if (type === "error" && this.onerror) this.onerror(e);
+            (this._h[type] || []).forEach(function (f) { try { f(e); } catch (x) {} });
+        };
+        XHR.prototype._done = function (status, resp, text) {
+            this.readyState = 4; this.status = status; this.response = resp;
+            this.responseText = (text != null ? text : (typeof resp === "string" ? resp : ""));
+            this.responseURL = this._url;
+            this._fire("readystatechange");
+            this._fire(status >= 200 && status < 400 ? "load" : "error");
+        };
+
+        XHR.prototype.send = function (body) {
+            var self = this;
+            if (this._real) { // remote or non-GET: proxy through a real XHR
+                var r = this._real;
+                try { r.responseType = this.responseType; } catch (e) {}
+                r.onreadystatechange = function () {
+                    self.readyState = r.readyState; self.status = r.status; self.response = r.response;
+                    try { self.responseText = r.responseText; } catch (e) {}
+                    self._fire("readystatechange");
+                    if (r.readyState === 4) self._fire(r.status >= 200 && r.status < 400 ? "load" : "error");
+                };
+                return r.send(body);
+            }
+            var rel = this._rel;
+            if (!this._async) { // synchronous local read: cache only
+                var k = rel.replace(/\/+$/, "");
+                if (Object.prototype.hasOwnProperty.call(syncCache, k)) { this._done(200, syncCache[k], syncCache[k]); }
+                else { this._done(404, null, ""); }
+                return;
+            }
+            var kind = this.responseType === "arraybuffer" ? "arraybuffer" : this.responseType === "blob" ? "blob" : "text";
+            readBundle(rel, kind).then(function (res) {
+                self._done(200, res, kind === "text" ? res : null);
+            }, function () { self._done(404, null, ""); });
+        };
+
+        XHR.UNSENT = 0; XHR.OPENED = 1; XHR.HEADERS_RECEIVED = 2; XHR.LOADING = 3; XHR.DONE = 4;
+        XHR.__iosShim = true;
+        window.XMLHttpRequest = XHR;
+        stat("XMLHttpRequest shim installed");
+    }
+
+    // ---- override the nwjs fs sync shim (bypass XHR entirely for sync) ----
     function installFsOverride() {
         var fs = (typeof require === "function") && require.libs && require.libs.fs;
         if (!fs || fs.__iosPatched) return;
         var _rfs = fs.readFileSync, _rds = fs.readdirSync;
-
         fs.readFileSync = function (path) {
-            var k = norm(path);
-            if (Object.prototype.hasOwnProperty.call(syncCache, k)) return syncCache[k];
-            return _rfs.apply(fs, arguments); // saves route here -> NativeFunctions
+            var k = toRel(path);
+            if (k != null && Object.prototype.hasOwnProperty.call(syncCache, k)) return syncCache[k];
+            return _rfs.apply(fs, arguments); // saves -> NativeFunctions
         };
         fs.readdirSync = function (path) {
-            var k = norm(path);
-            if (Object.prototype.hasOwnProperty.call(dirCache, k)) return dirCache[k].slice();
+            var k = toRel(path);
+            if (k != null && Object.prototype.hasOwnProperty.call(dirCache, k)) return dirCache[k].slice();
             return _rds.apply(fs, arguments);
         };
         fs.__iosPatched = true;
         stat("fs.readFileSync/readdirSync overridden");
     }
+    var dirCache = {}; // "Languages/en" -> [files]
 
-    // preload the exact bounded set GTP_OmoriFixes reads synchronously
     function preloadSyncReads() {
         var jobs = [];
         ["data/Notes.yaml", "data/Quests.yaml", "data/Atlas.yaml"].forEach(function (rel) {
-            jobs.push(readBundleText(rel).then(function (t) { syncCache[rel] = t; })
-                .catch(function () { stat("MISS " + rel); }));
+            jobs.push(readBundle(rel, "text").then(function (t) { syncCache[rel] = t; }).catch(function () { stat("MISS " + rel); }));
         });
-        // Languages: top _DIRECTORY.json -> langs -> each lang's listing + yaml
-        var langJob = readBundleText("Languages/_DIRECTORY.json").then(function (t) {
-            var langs = JSON.parse(t);
-            return Promise.all(langs.map(function (lang) {
+        var langJob = readBundle("Languages/_DIRECTORY.json", "text").then(function (t) {
+            return Promise.all(JSON.parse(t).map(function (lang) {
                 var dir = "Languages/" + lang;
-                return readBundleText(dir + "/_DIRECTORY.json").then(function (lt) {
-                    var files = JSON.parse(lt);
-                    dirCache[dir] = files;
-                    return Promise.all(files.filter(function (f) { return /\.yaml$/i.test(f); })
-                        .map(function (f) {
-                            var rel = dir + "/" + f;
-                            return readBundleText(rel).then(function (c) { syncCache[rel] = c; })
-                                .catch(function () {});
-                        }));
+                return readBundle(dir + "/_DIRECTORY.json", "text").then(function (lt) {
+                    var files = JSON.parse(lt); dirCache[dir] = files;
+                    return Promise.all(files.filter(function (f) { return /\.yaml$/i.test(f); }).map(function (f) {
+                        return readBundle(dir + "/" + f, "text").then(function (c) { syncCache[dir + "/" + f] = c; }).catch(function () {});
+                    }));
                 });
             }));
         }).catch(function (e) { stat("lang preload failed: " + e); });
         jobs.push(langJob);
         return Promise.all(jobs).then(function () {
-            stat("preloaded syncFiles=" + Object.keys(syncCache).length +
-                 " dirs=" + Object.keys(dirCache).length);
-        });
-    }
-
-    // quick probe: does async XHR to file:// work? (informs future fixes)
-    function probeAsyncXHR() {
-        return new Promise(function (resolve) {
-            try {
-                var x = new XMLHttpRequest();
-                x.open("GET", "data/System.json", true);
-                x.onload = function () { stat("asyncXHR file:// OK status=" + x.status); resolve(); };
-                x.onerror = function () { stat("asyncXHR file:// FAILED"); resolve(); };
-                x.send();
-            } catch (e) { stat("asyncXHR threw: " + e); resolve(); }
+            stat("preloaded syncFiles=" + Object.keys(syncCache).length + " dirs=" + Object.keys(dirCache).length);
         });
     }
 
     // =====================================================================
-    //  2. Save I/O on documentsDirectory
+    //  Save I/O on documentsDirectory
     // =====================================================================
-    function saveName(path) { return baseName(path); }
     window._SAYGEXES = window._SAYGEXES || {};
     function cacheSet(name, exists, content) {
         var e = window._SAYGEXES[name] || {};
@@ -142,22 +196,17 @@
         if (content !== undefined) e.content = content;
         window._SAYGEXES[name] = e;
     }
-
     function installNativeFunctions() {
         if (window.NativeFunctions && window.NativeFunctions.__ios) return;
         StorageManager.isLocalMode = function () { return true; };
-        var NF = {
-            __ios: true,
-            saveFileExists: function (p) { var e = window._SAYGEXES[saveName(p)]; return !!(e && e.exists); },
-            readSaveFileUTF8: function (p) { var e = window._SAYGEXES[saveName(p)]; return (e && e.content != null) ? e.content : null; },
-            writeSaveFileUTF8: function (p, data) { var n = saveName(p); cacheSet(n, true, data); writeDocs("save", n, data); },
-            writeExternalFileUTF8: function (p, data) { writeDocs(null, saveName(p), data); }
-        };
-        window.NativeFunctions = NF;
-        Object.freeze(window.NativeFunctions);
+        var NF = { __ios: true,
+            saveFileExists: function (p) { var e = window._SAYGEXES[baseName(p)]; return !!(e && e.exists); },
+            readSaveFileUTF8: function (p) { var e = window._SAYGEXES[baseName(p)]; return (e && e.content != null) ? e.content : null; },
+            writeSaveFileUTF8: function (p, d) { var n = baseName(p); cacheSet(n, true, d); writeDocs("save", n, d); },
+            writeExternalFileUTF8: function (p, d) { writeDocs(null, baseName(p), d); } };
+        window.NativeFunctions = NF; Object.freeze(window.NativeFunctions);
         stat("NativeFunctions installed + frozen (documentsDirectory)");
     }
-
     function writeDocs(subdir, name, data) {
         window.resolveLocalFileSystemURL(cordova.file.documentsDirectory, function (root) {
             function put(dir) {
@@ -174,8 +223,7 @@
             else put(root);
         }, function (e) { console.error("[ios_compat] resolve docs failed", e); });
     }
-
-    function preloadSaves() { // Promise
+    function preloadSaves() {
         return new Promise(function (resolve) {
             window.resolveLocalFileSystemURL(cordova.file.documentsDirectory, function (root) {
                 root.getDirectory("save", { create: true }, function (saveDir) {
@@ -195,41 +243,34 @@
             }, function () { resolve(); });
         });
     }
-
-    function writeStatus() {
-        try { writeDocs(null, "ios_status.txt", statusLines.join("\n")); } catch (e) {}
-    }
+    function writeStatus() { try { writeDocs(null, "ios_status.txt", statusLines.join("\n")); } catch (e) {} }
 
     // =====================================================================
-    //  Boot gate: hold SceneManager.run until caches are warm
+    //  Boot gate: hold SceneManager.run until caches warm & shims installed
     // =====================================================================
-    installFsOverride(); // install ASAP (require.libs.fs exists by now)
+    installXHRShim();
+    installFsOverride();
 
     var savesReady = false, pendingBoot = null;
     var _run = SceneManager.run.bind(SceneManager);
     SceneManager.run = function (sceneClass) {
         if (savesReady) return _run(sceneClass);
-        stat("holding boot until preload done");
-        pendingBoot = sceneClass;
+        stat("holding boot until preload done"); pendingBoot = sceneClass;
     };
     function releaseBoot() {
-        if (savesReady) return;
-        savesReady = true;
-        installFsOverride();
-        installNativeFunctions();
-        writeStatus();
+        if (savesReady) return; savesReady = true;
+        installXHRShim(); installFsOverride(); installNativeFunctions(); writeStatus();
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
     }
     SceneManager.terminate = noop;
 
     document.addEventListener("deviceready", function () {
         stat("deviceready; docs=" + (cordova.file && cordova.file.documentsDirectory));
-        installNativeFunctions();
-        installFsOverride();
-        Promise.all([preloadSaves(), preloadSyncReads(), probeAsyncXHR()])
+        installXHRShim(); installFsOverride(); installNativeFunctions();
+        Promise.all([preloadSaves(), preloadSyncReads()])
             .then(function () { stat("preload complete; saves=" + Object.keys(window._SAYGEXES).length); releaseBoot(); })
             .catch(function (e) { stat("preload error: " + e); releaseBoot(); });
     }, false);
 
-    setTimeout(releaseBoot, 40000); // safety net (preload ~213 lang files)
+    setTimeout(releaseBoot, 40000); // safety net
 })();
