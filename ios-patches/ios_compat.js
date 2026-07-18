@@ -101,12 +101,20 @@
         var _cs = SceneManager.changeScene;
         if (_cs) SceneManager.changeScene = function () {
             window.__csN = (window.__csN || 0) + 1;
-            if (this.isSceneChanging && this.isSceneChanging()) {
-                window.__csChanging = true;
-                window.__csBusy = this.isCurrentSceneBusy ? this.isCurrentSceneBusy() : "?";
-                try { window.__csReqQ = ImageManager._requestQueue._queue.length; } catch (e) { window.__csReqQ = "?"; }
-            }
+            try {
+                window.__csState = "chg=" + this.isSceneChanging() +
+                    " sc=" + (this._scene && this._scene.constructor.name) +
+                    " nx=" + (this._nextScene && this._nextScene.constructor.name) +
+                    " busy=" + this.isCurrentSceneBusy();
+            } catch (e) { window.__csState = "err:" + e.message; }
             return _cs.apply(this, arguments);
+        };
+        // trace goto (who requests the transition, how often)
+        var _goto = SceneManager.goto;
+        if (_goto) SceneManager.goto = function (sc) {
+            window.__gotoN = (window.__gotoN || 0) + 1;
+            window.__gotoLast = sc && sc.name;
+            return _goto.apply(this, arguments);
         };
     }
 
@@ -196,7 +204,8 @@
                  " q0=" + (typeof ImageManager !== "undefined" && ImageManager._requestQueue && ImageManager._requestQueue._queue && ImageManager._requestQueue._queue[0] ? ImageManager._requestQueue._queue[0].key : "-") +
                  " nextAtlas=" + (SceneManager._nextScene && SceneManager._nextScene.areAllRequiredAtlasLoaded ? SceneManager._nextScene.areAllRequiredAtlasLoaded() : "?") +
                  " frames=" + (window.__iosFrames || 0) +
-                 " csN=" + (window.__csN || 0) + " csBusy=" + window.__csBusy + " csReqQ=" + window.__csReqQ +
+                 " csN=" + (window.__csN || 0) + " csState=[" + window.__csState + "]" +
+                 " goto{n:" + (window.__gotoN || 0) + ",last:" + window.__gotoLast + "}" +
                  " mSafari=" + (typeof Utils !== "undefined" && Utils.isMobileSafari ? Utils.isMobileSafari() : "?") +
                  " imReadyNow=" + (typeof ImageManager !== "undefined" && ImageManager.isReady ? ImageManager.isReady() : "?") +
                  " stuck=" + JSON.stringify(stuckImages()) +
