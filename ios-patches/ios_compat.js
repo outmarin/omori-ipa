@@ -194,7 +194,14 @@
         };
         fs.readdirSync = function (path) {
             var k = toRel(path);
-            if (k != null && Object.prototype.hasOwnProperty.call(dirCache, k)) return dirCache[k].slice();
+            if (k != null) {
+                k = k.replace(/\/+$/, "");
+                if (Object.prototype.hasOwnProperty.call(dirCache, k)) return dirCache[k].slice();
+                var dj = k + "/_DIRECTORY.json"; // fall back to embedded listing
+                if (Object.prototype.hasOwnProperty.call(syncCache, dj)) {
+                    try { return JSON.parse(syncCache[dj]); } catch (e) {}
+                }
+            }
             return _rds.apply(fs, arguments);
         };
         fs.__iosPatched = true;
