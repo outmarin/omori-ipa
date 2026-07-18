@@ -132,17 +132,29 @@
     SceneManager.run = function (sc) { if (ready) return _run(sc); pendingBoot = sc; };
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions();
+        installNativeFunctions(); hookImages();
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
-        [5000, 15000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
+        [5000, 12000, 25000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
+    }
+    var imgStat = { err: 0, ok: 0, errURLs: {} };
+    function hookImages() {
+        if (typeof Bitmap === "undefined" || Bitmap.__iosHooked) return;
+        var _e = Bitmap.prototype._onError, _l = Bitmap.prototype._onLoad;
+        Bitmap.prototype._onError = function () { imgStat.err++; if (this._url) imgStat.errURLs[this._url] = (imgStat.errURLs[this._url] || 0) + 1; return _e && _e.apply(this, arguments); };
+        Bitmap.prototype._onLoad = function () { imgStat.ok++; return _l && _l.apply(this, arguments); };
+        Bitmap.__iosHooked = true;
     }
     function probe(tag) {
         try {
             var s = SceneManager._scene, sc = s && s.constructor && s.constructor.name;
+            var imReady = (typeof ImageManager !== "undefined" && ImageManager.isReady) ? ImageManager.isReady() : "?";
+            var sbReady = false; try { sbReady = Scene_Base.prototype.isReady.call(SceneManager._scene); } catch (e) {}
             stat("PROBE " + tag + ": scene=" + sc +
                  " db=" + ((typeof DataManager !== "undefined" && DataManager.isDatabaseLoaded) ? DataManager.isDatabaseLoaded() : "?") +
-                 " $dataSystem=" + (typeof $dataSystem !== "undefined" && !!$dataSystem) +
-                 " font=" + (typeof Graphics !== "undefined" && Graphics.isFontLoaded ? Graphics.isFontLoaded("GameFont") : "?"));
+                 " font=" + (typeof Graphics !== "undefined" && Graphics.isFontLoaded ? Graphics.isFontLoaded("GameFont") : "?") +
+                 " ImgReady=" + imReady + " SceneBaseReady=" + sbReady +
+                 " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}" +
+                 " errURLs=" + JSON.stringify(Object.keys(imgStat.errURLs).slice(0, 6)));
         } catch (e) { stat("probe err: " + e.message); }
     }
 
