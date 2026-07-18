@@ -1,0 +1,7 @@
+XMLHttpRequest shim installed
+fs.readFileSync/readdirSync overridden
+deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/A250A93A-FB32-4EB0-8D2B-415A36493EFA/Documents/
+NativeFunctions installed + frozen (documentsDirectory)
+holding boot until preload done
+preloaded syncFiles=211 dirs=1
+preload complete; saves=0

@@ -23,7 +23,14 @@
 
     var noop = function () {};
     var statusLines = [];
-    function stat(s) { statusLines.push(s); console.log("[ios_compat] " + s); }
+    function stat(s) { statusLines.push(s); console.log("[ios_compat] " + s); try { writeStatus(); } catch (e) {} }
+
+    // capture the real JS error (the game's red screen hides the message)
+    window.addEventListener("error", function (ev) {
+        var where = (ev.filename || "").split("/").pop() + ":" + ev.lineno + ":" + ev.colno;
+        stat("JS ERROR: " + (ev.message || "") + " @ " + where +
+             (ev.error && ev.error.stack ? " | " + String(ev.error.stack).split("\n").slice(0, 3).join(" << ") : ""));
+    });
 
     // ---- 1. Android-only API stubs ---------------------------------------
     window.AndroidFullScreen = {
@@ -70,7 +77,10 @@
     // =====================================================================
     //  XMLHttpRequest shim: local URLs -> file plugin; remote -> real XHR
     // =====================================================================
-    var syncCache = {};   // "data/Notes.yaml" -> text (for synchronous XHR/readFileSync)
+    // synchronous read caches, warmed from build-time embedded data so they
+    // are ready BEFORE plugins run (plugins read Atlas.yaml/Languages at load).
+    var syncCache = window.__IOS_SYNC_FILES || {}; // "data/Notes.yaml" -> text
+    var dirCache = window.__IOS_SYNC_DIRS || {};   // "Languages/en" -> [files]
 
     function installXHRShim() {
         var Real = window.__RealXHR || window.XMLHttpRequest;
@@ -160,30 +170,7 @@
             return _rds.apply(fs, arguments);
         };
         fs.__iosPatched = true;
-        stat("fs.readFileSync/readdirSync overridden");
-    }
-    var dirCache = {}; // "Languages/en" -> [files]
-
-    function preloadSyncReads() {
-        var jobs = [];
-        ["data/Notes.yaml", "data/Quests.yaml", "data/Atlas.yaml"].forEach(function (rel) {
-            jobs.push(readBundle(rel, "text").then(function (t) { syncCache[rel] = t; }).catch(function () { stat("MISS " + rel); }));
-        });
-        var langJob = readBundle("Languages/_DIRECTORY.json", "text").then(function (t) {
-            return Promise.all(JSON.parse(t).map(function (lang) {
-                var dir = "Languages/" + lang;
-                return readBundle(dir + "/_DIRECTORY.json", "text").then(function (lt) {
-                    var files = JSON.parse(lt); dirCache[dir] = files;
-                    return Promise.all(files.filter(function (f) { return /\.yaml$/i.test(f); }).map(function (f) {
-                        return readBundle(dir + "/" + f, "text").then(function (c) { syncCache[dir + "/" + f] = c; }).catch(function () {});
-                    }));
-                });
-            }));
-        }).catch(function (e) { stat("lang preload failed: " + e); });
-        jobs.push(langJob);
-        return Promise.all(jobs).then(function () {
-            stat("preloaded syncFiles=" + Object.keys(syncCache).length + " dirs=" + Object.keys(dirCache).length);
-        });
+        stat("fs override; embedded syncFiles=" + Object.keys(syncCache).length + " dirs=" + Object.keys(dirCache).length);
     }
 
     // =====================================================================
@@ -267,9 +254,9 @@
     document.addEventListener("deviceready", function () {
         stat("deviceready; docs=" + (cordova.file && cordova.file.documentsDirectory));
         installXHRShim(); installFsOverride(); installNativeFunctions();
-        Promise.all([preloadSaves(), preloadSyncReads()])
-            .then(function () { stat("preload complete; saves=" + Object.keys(window._SAYGEXES).length); releaseBoot(); })
-            .catch(function (e) { stat("preload error: " + e); releaseBoot(); });
+        preloadSaves()
+            .then(function () { stat("saves preloaded=" + Object.keys(window._SAYGEXES).length); releaseBoot(); })
+            .catch(function (e) { stat("saves preload error: " + e); releaseBoot(); });
     }, false);
 
     setTimeout(releaseBoot, 40000); // safety net

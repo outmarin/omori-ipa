@@ -44,10 +44,12 @@ jobs:
 
       - name: Apply iOS patches
         run: |
-          # 1. drop the iOS compat script and wire it into index.html after main.js
+          # 1. embed sync-read data (read at plugin-load, before deviceready) + compat layer, BEFORE main.js
           cp ios-patches/ios_compat.js www/js/porting/ios_compat.js
-          perl -0pi -e 's{(<script[^>]*src="js/main\.js"></script>)}{$1\n    <script type="text/javascript" src="js/porting/ios_compat.js"></script>}' www/index.html
-          grep -n ios_compat www/index.html || (echo "PATCH FAILED: ios_compat not injected" && exit 1)
+          node ci/gen_sync_data.js www
+          perl -0pi -e 's{(<script[^>]*src="js/main\.js"></script>)}{<script type="text/javascript" src="js/porting/ios_sync_data.js"></script>\n    <script type="text/javascript" src="js/porting/ios_compat.js"></script>\n    $1}' www/index.html
+          grep -n "ios_sync_data\|ios_compat" www/index.html || (echo "PATCH FAILED: scripts not injected" && exit 1)
+          ls -lh www/js/porting/ios_sync_data.js
           # 2. transcode webm cutscenes -> mp4 (engine requests .mp4 on mobile)
           shopt -s nullglob
           for f in www/movies/*.webm; do
