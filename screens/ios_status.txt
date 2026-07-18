@@ -1,0 +1,1 @@
+ios_compat OK; platform=ios; preloadedSaves=0; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/06A6202C-57C3-4A85-A99F-46352734E0A8/Documents/
