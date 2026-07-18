@@ -23,5 +23,13 @@
         <preference name="AllowFileAccessFromFileURLs" value="true" />
         <preference name="AllowUniversalAccessFromFileURLs" value="true" />
         <allow-navigation href="*" />
+        <allow-navigation href="http://127.0.0.1:*/*" />
+        <allow-navigation href="http://localhost:*/*" />
+        <edit-config target="NSAppTransportSecurity" file="*-Info.plist" mode="merge">
+            <dict>
+                <key>NSAllowsArbitraryLoads</key><true/>
+                <key>NSAllowsLocalNetworking</key><true/>
+            </dict>
+        </edit-config>
     </platform>
 </widget>

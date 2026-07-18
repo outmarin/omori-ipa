@@ -1,0 +1,20 @@
+XMLHttpRequest shim installed
+fs override; embedded syncFiles=255 dirs=44
+JS ERROR: Script error. @ :0:0
+JS ERROR: Script error. @ :0:0
+JS ERROR: Script error. @ :0:0
+JS ERROR: Script error. @ :0:0
+deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/0749AC02-5465-47D0-A13F-570CCA6512B8/Documents/
+NativeFunctions installed + frozen (documentsDirectory)
+atlas read: type=string len=229447 head="source:\n  im"
+atlas parsed: type=object hasSource=true keys=1088
+$atlasData now: type=undefined hasSource=false
+holding boot until preload done
+font ok: OMORI_GAME
+font ok: GameFont
+font ok: NotoSans
+font ok: mplus-1m-regular
+saves preloaded=0
+PROBE 4s: scene=null dbLoaded=false $dataSystem=false $dataMap=false xhr{ok:0,fail:0,pending:4} failURLs=[]
+PROBE 10s: scene=null dbLoaded=false $dataSystem=false $dataMap=false xhr{ok:0,fail:0,pending:4} failURLs=[]
+PROBE 20s: scene=null dbLoaded=false $dataSystem=false $dataMap=false xhr{ok:0,fail:0,pending:4} failURLs=[]

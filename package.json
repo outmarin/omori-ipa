@@ -13,7 +13,8 @@
     "platforms": ["ios"],
     "plugins": {
       "cordova-plugin-file": {},
-      "cordova-plugin-insomnia": {}
+      "cordova-plugin-insomnia": {},
+      "cordova-plugin-httpd": {}
     }
   }
 }
