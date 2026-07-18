@@ -173,28 +173,40 @@
             });
         }
         try { wrap(Scene_Boot, ["start", "terminate"]); } catch (e) {}
-        try { wrap(window.Scene_SplashScreens, ["initialize", "create", "start", "update", "terminate"]); } catch (e) {}
+        try { wrap(window.Scene_SplashScreens, ["create", "start", "terminate"]); } catch (e) {}
+        try { wrap(window.Scene_OmoriTitleScreen, ["create", "start"]); } catch (e) {}
+        try { wrap(window.Scene_Title, ["create", "start"]); } catch (e) {}
     }
-    // watchdog: if a scene change is pending but not applied for ~3s, force it
+    // Root cause: OMORI's loading animation requests a bitmap every frame, so
+    // ImageManager.isReady() is briefly false exactly when the per-frame
+    // changeScene()/isReady() checks run -> transitions & scene-starts never fire.
+    // It IS ready between frames, so a setInterval watchdog forces progress.
     function startWatchdog() {
-        var last = null, same = 0;
+        var lastKey = null, same = 0;
         setInterval(function () {
-            var sc = SceneManager._scene && SceneManager._scene.constructor.name;
-            if (sc === last && SceneManager._nextScene) {
-                if (++same >= 2) {
-                    var ns = SceneManager._nextScene;
-                    stat("WATCHDOG force " + sc + " -> " + ns.constructor.name);
-                    try {
-                        if (SceneManager._scene) { SceneManager._scene.terminate(); SceneManager._scene.detachReservation(); }
-                        SceneManager._scene = ns; SceneManager._nextScene = null;
-                        ns.attachReservation(); ns.create(); SceneManager._sceneStarted = false;
-                        if (SceneManager.onSceneCreate) SceneManager.onSceneCreate();
-                    } catch (e) { stat("watchdog err: " + e.message + " | " + String(e.stack || "").split("\n").slice(0, 3).join(" << ")); }
+            var SM = SceneManager, s = SM._scene;
+            var key = (s && s.constructor.name) + "|" + (SM._nextScene && SM._nextScene.constructor.name) + "|" + SM._sceneStarted;
+            if (key === lastKey) same++; else same = 0;
+            lastKey = key;
+            if (same < 1) return; // stuck for ~1.2s
+
+            try {
+                if (SM._nextScene) {                       // pending transition -> force swap
+                    var ns = SM._nextScene;
+                    if (s) { s.terminate(); s.detachReservation(); }
+                    SM._scene = ns; SM._nextScene = null;
+                    ns.attachReservation(); ns.create(); SM._sceneStarted = false;
+                    if (SM.onSceneCreate) SM.onSceneCreate();
+                    stat("WATCHDOG swap -> " + ns.constructor.name);
+                    same = 0;
+                } else if (s && !SM._sceneStarted) {        // created but never started -> force start
+                    s.start(); SM._sceneStarted = true;
+                    if (SM.onSceneStart) SM.onSceneStart();
+                    stat("WATCHDOG start " + s.constructor.name);
                     same = 0;
                 }
-            } else same = 0;
-            last = sc;
-        }, 1500);
+            } catch (e) { stat("watchdog err @" + (s && s.constructor.name) + ": " + e.message + " | " + String(e.stack || "").split("\n").slice(0, 3).join(" << ")); same = 0; }
+        }, 1200);
     }
     function releaseBoot() {
         if (ready) return; ready = true;
