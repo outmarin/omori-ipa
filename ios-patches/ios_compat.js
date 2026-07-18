@@ -161,9 +161,44 @@
     // hold boot until the save cache is warm (StorageManager cold reads are sync)
     var ready = false, pendingBoot = null, _run = SceneManager.run.bind(SceneManager);
     SceneManager.run = function (sc) { if (ready) return _run(sc); pendingBoot = sc; };
+    function hookScenes() {
+        function wrap(cls, methods) {
+            if (typeof cls === "undefined" || !cls) return;
+            methods.forEach(function (m) {
+                var o = cls.prototype[m];
+                if (o && !o.__ioshook) {
+                    cls.prototype[m] = function () { if (m !== "update" || !this.__u) { this.__u = 1; stat("LIFE " + cls.name + "." + m); } return o.apply(this, arguments); };
+                    cls.prototype[m].__ioshook = true;
+                }
+            });
+        }
+        try { wrap(Scene_Boot, ["start", "terminate"]); } catch (e) {}
+        try { wrap(window.Scene_SplashScreens, ["initialize", "create", "start", "update", "terminate"]); } catch (e) {}
+    }
+    // watchdog: if a scene change is pending but not applied for ~3s, force it
+    function startWatchdog() {
+        var last = null, same = 0;
+        setInterval(function () {
+            var sc = SceneManager._scene && SceneManager._scene.constructor.name;
+            if (sc === last && SceneManager._nextScene) {
+                if (++same >= 2) {
+                    var ns = SceneManager._nextScene;
+                    stat("WATCHDOG force " + sc + " -> " + ns.constructor.name);
+                    try {
+                        if (SceneManager._scene) { SceneManager._scene.terminate(); SceneManager._scene.detachReservation(); }
+                        SceneManager._scene = ns; SceneManager._nextScene = null;
+                        ns.attachReservation(); ns.create(); SceneManager._sceneStarted = false;
+                        if (SceneManager.onSceneCreate) SceneManager.onSceneCreate();
+                    } catch (e) { stat("watchdog err: " + e.message + " | " + String(e.stack || "").split("\n").slice(0, 3).join(" << ")); }
+                    same = 0;
+                }
+            } else same = 0;
+            last = sc;
+        }, 1500);
+    }
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions(); hookImages();
+        installNativeFunctions(); hookImages(); hookScenes(); startWatchdog();
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
         [5000, 12000, 25000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
     }
