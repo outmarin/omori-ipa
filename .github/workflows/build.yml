@@ -1,0 +1,127 @@
+name: build-ios
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios-patches/**"
+      - "config.xml"
+      - "package.json"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 90
+    env:
+      APK_TAG: v1
+      BUNDLE_ID: com.poring.omori.ru
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode / Node
+        run: |
+          xcodebuild -version
+          node --version
+          which ffmpeg || brew install ffmpeg
+
+      - name: Install Cordova
+        run: npm i -g cordova@12
+
+      - name: Download APK from release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$APK_TAG" -p '*.apk' -O game.apk
+
+      - name: Extract www from APK
+        run: |
+          mkdir -p extract
+          unzip -q game.apk 'assets/www/*' -d extract
+          mkdir -p www
+          cp -R extract/assets/www/. www/
+          rm -rf extract game.apk
+          echo "www size:"; du -sh www
+
+      - name: Apply iOS patches
+        run: |
+          # 1. drop the iOS compat script and wire it into index.html after main.js
+          cp ios-patches/ios_compat.js www/js/porting/ios_compat.js
+          perl -0pi -e 's{(<script[^>]*src="js/main\.js"></script>)}{$1\n    <script type="text/javascript" src="js/porting/ios_compat.js"></script>}' www/index.html
+          grep -n ios_compat www/index.html || (echo "PATCH FAILED: ios_compat not injected" && exit 1)
+          # 2. transcode webm cutscenes -> mp4 (engine requests .mp4 on mobile)
+          shopt -s nullglob
+          for f in www/movies/*.webm; do
+            echo "transcode $f"
+            ffmpeg -y -loglevel error -i "$f" -c:v libx264 -pix_fmt yuv420p -profile:v high \
+                   -c:a aac -b:a 160k -movflags +faststart "${f%.webm}.mp4" && rm "$f"
+          done
+          ls www/movies | head
+
+      - name: Cordova add platform + plugins
+        run: |
+          cordova platform add ios@7 --no-telemetry
+          cordova plugin add cordova-plugin-file cordova-plugin-insomnia --no-telemetry
+          cordova plugin ls
+
+      # ---------- VERIFY: simulator build + launch + screenshot ----------
+      - name: Build for simulator
+        run: |
+          cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -40
+          echo "--- locating .app ---"
+          find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" -print
+          APP=$(find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" | head -1)
+          [ -z "$APP" ] && APP=$(find platforms/ios -maxdepth 5 -name "*.app" | head -1)
+          echo "SIM_APP=$APP" >> $GITHUB_ENV
+          echo "found: $APP"
+
+      - name: Boot simulator, install, launch, screenshot
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for v in d.values() for x in v if 'iPhone' in x['name']]; print(c[-1]['udid'])")
+          echo "sim UDID=$UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # stream device logs in background
+          xcrun simctl spawn "$UDID" log stream --level debug --style compact \
+            --predicate 'processImagePath CONTAINS "OMORI" OR eventMessage CONTAINS "ios_compat" OR eventMessage CONTAINS "Scene"' > applog.txt 2>&1 &
+          LOGPID=$!
+          xcrun simctl install "$UDID" "$SIM_APP"
+          xcrun simctl launch --console "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
+          sleep 25; xcrun simctl io "$UDID" screenshot shot_25s.png || true
+          sleep 20; xcrun simctl io "$UDID" screenshot shot_45s.png || true
+          sleep 20; xcrun simctl io "$UDID" screenshot shot_65s.png || true
+          kill $LOGPID 2>/dev/null || true
+          echo "==== launch.txt ===="; cat launch.txt || true
+          echo "==== applog.txt (ios_compat/Scene lines) ===="; grep -E "ios_compat|Scene_|Boot|error|Error" applog.txt | head -80 || true
+
+      # ---------- RELEASE: unsigned device .app -> IPA ----------
+      - name: Build unsigned device IPA
+        run: |
+          cordova build ios --device --release --no-telemetry \
+            --buildFlag='CODE_SIGN_IDENTITY=' \
+            --buildFlag='CODE_SIGNING_REQUIRED=NO' \
+            --buildFlag='CODE_SIGNING_ALLOWED=NO' \
+            --buildFlag='DEVELOPMENT_TEAM=' 2>&1 | tail -40 || true
+          APP=$(find platforms/ios -maxdepth 6 -name "*.app" -path "*Release-iphoneos*" | head -1)
+          [ -z "$APP" ] && APP=$(find platforms/ios -maxdepth 6 -name "*.app" ! -path "*imulator*" | head -1)
+          echo "device app: $APP"
+          if [ -n "$APP" ]; then
+            rm -rf Payload OMORI.ipa
+            mkdir Payload
+            cp -R "$APP" Payload/
+            zip -qry OMORI.ipa Payload
+            echo "IPA:"; ls -lh OMORI.ipa
+          else
+            echo "no device .app produced"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omori-ios-${{ github.run_number }}
+          retention-days: 7
+          path: |
+            shot_*.png
+            applog.txt
+            launch.txt
+            OMORI.ipa

@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.poring.omori.ru" version="1.0.8" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>OMORI</name>
+    <description>OMORI (RU) — iOS port</description>
+    <content src="index.html" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="BackupWebStorage" value="none" />
+    <preference name="Orientation" value="landscape" />
+    <preference name="MediaPlaybackRequiresUserAction" value="false" />
+    <preference name="AllowInlineMediaPlayback" value="true" />
+    <preference name="StatusBarOverlaysWebView" value="false" />
+    <preference name="Hidden" value="true" />
+    <preference name="AutoHideSplashScreen" value="true" />
+
+    <platform name="ios">
+        <preference name="deployment-target" value="13.0" />
+        <preference name="WKWebViewOnly" value="true" />
+        <preference name="AllowUntrustedCerts" value="true" />
+        <preference name="AllowFileAccessFromFileURLs" value="true" />
+        <preference name="AllowUniversalAccessFromFileURLs" value="true" />
+        <icon src="www/icon/icon.png" />
+        <allow-navigation href="*" />
+    </platform>
+</widget>

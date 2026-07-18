@@ -1,0 +1,8 @@
+*.apk
+*.ipa
+www/
+platforms/
+plugins/
+node_modules/
+Payload/
+extract/
