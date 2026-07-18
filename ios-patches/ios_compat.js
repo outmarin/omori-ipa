@@ -31,6 +31,34 @@
         stat("JS ERROR: " + (ev.message || "") + " @ " + where +
              (ev.error && ev.error.stack ? " | " + String(ev.error.stack).split("\n").slice(0, 3).join(" << ") : ""));
     });
+    // the engine catches exceptions itself (red screen) - hook it for the real message
+    if (typeof SceneManager !== "undefined") {
+        var _ce = SceneManager.catchException;
+        SceneManager.catchException = function (e) {
+            stat("SM.catch: " + (e && e.message ? e.message : e) + " || " +
+                 String(e && e.stack || "").replace(/\n/g, " << ").slice(0, 500));
+            return _ce ? _ce.apply(this, arguments) : undefined;
+        };
+        var _oe = SceneManager.onError;
+        SceneManager.onError = function (e) {
+            stat("SM.onError: " + (e && e.message ? e.message : e));
+            return _oe ? _oe.apply(this, arguments) : undefined;
+        };
+    }
+    // direct self-test of the exact runtime path that keeps failing (Atlas.yaml)
+    function atlasSelfTest() {
+        try {
+            var fs = require("fs");
+            var t = fs.readFileSync("./data/Atlas.yaml");
+            stat("atlas read: type=" + typeof t + " len=" + (t && t.length) + " head=" + JSON.stringify(String(t).slice(0, 12)));
+            var y = window.jsyaml || window.jsYaml;
+            if (!y) return stat("atlas: jsyaml MISSING");
+            var p = y.load(typeof t === "string" ? t : t.toString());
+            stat("atlas parsed: type=" + typeof p + " hasSource=" + !!(p && p.source) +
+                 " keys=" + (p && p.source ? Object.keys(p.source).length : -1));
+            stat("$atlasData now: type=" + typeof window.$atlasData + " hasSource=" + !!(window.$atlasData && window.$atlasData.source));
+        } catch (e) { stat("atlas selftest err: " + e.message); }
+    }
 
     // ---- 1. Android-only API stubs ---------------------------------------
     window.AndroidFullScreen = {
@@ -254,6 +282,7 @@
     document.addEventListener("deviceready", function () {
         stat("deviceready; docs=" + (cordova.file && cordova.file.documentsDirectory));
         installXHRShim(); installFsOverride(); installNativeFunctions();
+        atlasSelfTest();
         preloadSaves()
             .then(function () { stat("saves preloaded=" + Object.keys(window._SAYGEXES).length); releaseBoot(); })
             .catch(function (e) { stat("saves preload error: " + e); releaseBoot(); });

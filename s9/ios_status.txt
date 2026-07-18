@@ -1,0 +1,7 @@
+XMLHttpRequest shim installed
+fs override; embedded syncFiles=211 dirs=2
+JS ERROR: Script error. @ :0:0
+deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/083A31C8-5C31-4AA7-B7DB-30D2C3F926DB/Documents/
+NativeFunctions installed + frozen (documentsDirectory)
+holding boot until preload done
+saves preloaded=0
