@@ -2,6 +2,11 @@ name: build-ios
 
 on:
   workflow_dispatch:
+    inputs:
+      build_ipa:
+        description: "Also build the unsigned device IPA (slow ~7min). Off for fast debug loops."
+        type: boolean
+        default: false
   push:
     paths:
       - "ios-patches/**"
@@ -96,7 +101,7 @@ jobs:
           # NOTE: no --console (it blocks until the app exits); launch returns the pid
           xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
           cat launch.txt
-          for t in 20 40 60 90 120; do
+          for t in 15 30 45; do
             sleep $((t - ${last:-0})); last=$t
             xcrun simctl io "$UDID" screenshot "shot_${t}s.png" || true
             echo "screenshot at ${t}s"
@@ -110,8 +115,9 @@ jobs:
           echo "---- ios_status.txt ----"; cat "$DATA/Documents/ios_status.txt" 2>/dev/null || echo "(no status file)"
           cp "$DATA/Documents/ios_status.txt" ios_status.txt 2>/dev/null || true
 
-      # ---------- RELEASE: unsigned device .app -> IPA ----------
+      # ---------- RELEASE: unsigned device .app -> IPA (only on demand) ----------
       - name: Build unsigned device IPA
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_ipa }}
         run: |
           cordova build ios --device --release --no-telemetry \
             --buildFlag='CODE_SIGN_IDENTITY=' \
@@ -146,7 +152,7 @@ jobs:
             ios_status.txt
 
       - name: Upload IPA (large, separate)
-        if: always()
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_ipa }}
         uses: actions/upload-artifact@v4
         with:
           name: omori-ipa-${{ github.run_number }}
