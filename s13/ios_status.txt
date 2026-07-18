@@ -1,0 +1,12 @@
+XMLHttpRequest shim installed
+fs override; embedded syncFiles=255 dirs=44
+holding boot until preload done
+deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/AA2D471B-41A1-48D9-81C0-C8D510C4ECF6/Documents/
+NativeFunctions installed + frozen (documentsDirectory)
+atlas read: type=string len=229447 head="source:\n  im"
+atlas parsed: type=object hasSource=true keys=1088
+$atlasData now: type=object hasSource=true
+saves preloaded=0
+PROBE 4s: scene=Scene_Boot dbLoaded=true $dataSystem=true $dataMap=false xhr{ok:30,fail:282,pending:0} lastFail=null (undefined)
+PROBE 10s: scene=Scene_Boot dbLoaded=true $dataSystem=true $dataMap=false xhr{ok:30,fail:283,pending:0} lastFail=null (undefined)
+PROBE 20s: scene=Scene_Boot dbLoaded=true $dataSystem=true $dataMap=false xhr{ok:30,fail:283,pending:0} lastFail=null (undefined)

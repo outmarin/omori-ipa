@@ -111,7 +111,7 @@
     var dirCache = window.__IOS_SYNC_DIRS || {};   // "Languages/en" -> [files]
 
     // XHR shim activity counters (diagnostics)
-    var xhr = { ok: 0, fail: 0, pending: 0, lastFail: "" };
+    var xhr = { ok: 0, fail: 0, pending: 0, fails: {} };
 
     function installXHRShim() {
         var Real = window.__RealXHR || window.XMLHttpRequest;
@@ -179,7 +179,7 @@
                 xhr.pending--; xhr.ok++;
                 self._done(200, res, kind === "text" ? res : null);
             }, function (e) {
-                xhr.pending--; xhr.fail++; xhr.lastFail = rel + " (" + (e && e.message) + ")";
+                xhr.pending--; xhr.fail++; xhr.fails[rel] = (xhr.fails[rel] || 0) + 1;
                 self._done(404, null, "");
             });
         };
@@ -275,6 +275,24 @@
     }
     function writeStatus() { try { writeDocs(null, "ios_status.txt", statusLines.join("\n")); } catch (e) {} }
 
+    // Load fonts from the bundle via FontFace(ArrayBuffer) — WKWebView won't load
+    // CSS @font-face from file://, so Scene_Boot.isGameFontLoaded() hangs forever.
+    function loadFonts() {
+        if (!window.FontFace || !document.fonts) { stat("FontFace API missing"); return Promise.resolve(); }
+        var FONTS = [
+            ["GameFont", "fonts/OMORI_GAME2.ttf"],   // the one Scene_Boot waits for
+            ["OMORI_GAME", "fonts/OMORI_GAME.ttf"],
+            ["NotoSans", "fonts/NotoSans_Regular.ttf"],
+            ["mplus-1m-regular", "fonts/mplus-1m-regular.ttf"]
+        ];
+        return Promise.all(FONTS.map(function (f) {
+            return readBundle(f[1], "arraybuffer").then(function (buf) {
+                var ff = new FontFace(f[0], buf);
+                return ff.load().then(function (loaded) { document.fonts.add(loaded); stat("font ok: " + f[0]); });
+            }).catch(function (e) { stat("font FAIL " + f[0] + ": " + (e && e.message)); });
+        }));
+    }
+
     // =====================================================================
     //  Boot gate: hold SceneManager.run until caches warm & shims installed
     // =====================================================================
@@ -302,7 +320,7 @@
                  " $dataSystem=" + (typeof $dataSystem !== "undefined" && !!$dataSystem) +
                  " $dataMap=" + (typeof $dataMap !== "undefined" && !!$dataMap) +
                  " xhr{ok:" + xhr.ok + ",fail:" + xhr.fail + ",pending:" + xhr.pending + "}" +
-                 (xhr.lastFail ? " lastFail=" + xhr.lastFail : ""));
+                 " failURLs=" + JSON.stringify(Object.keys(xhr.fails).slice(0, 6)));
         } catch (e) { stat("probe err: " + e.message); }
     }
     SceneManager.terminate = noop;
@@ -311,7 +329,7 @@
         stat("deviceready; docs=" + (cordova.file && cordova.file.documentsDirectory));
         installXHRShim(); installFsOverride(); installNativeFunctions();
         atlasSelfTest();
-        preloadSaves()
+        Promise.all([preloadSaves(), loadFonts()])
             .then(function () { stat("saves preloaded=" + Object.keys(window._SAYGEXES).length); releaseBoot(); })
             .catch(function (e) { stat("saves preload error: " + e); releaseBoot(); });
     }, false);
