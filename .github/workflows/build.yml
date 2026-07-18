@@ -66,7 +66,8 @@ jobs:
       # ---------- VERIFY: simulator build + launch + screenshot ----------
       - name: Build for simulator
         run: |
-          cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -40
+          set -o pipefail
+          cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -60
           echo "--- locating .app ---"
           find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" -print
           APP=$(find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" | head -1)

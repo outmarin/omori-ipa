@@ -22,7 +22,6 @@
         <preference name="AllowUntrustedCerts" value="true" />
         <preference name="AllowFileAccessFromFileURLs" value="true" />
         <preference name="AllowUniversalAccessFromFileURLs" value="true" />
-        <icon src="www/icon/icon.png" />
         <allow-navigation href="*" />
     </platform>
 </widget>
