@@ -97,6 +97,17 @@
         SceneManager.catchException = function (e) { stat("SM.catch: " + (e && e.message ? e.message : e) + " | " + String(e && e.stack || "").replace(/\n/g, " << ").slice(0, 350)); return _ce ? _ce.apply(this, arguments) : undefined; };
         var _frames = 0, _um = SceneManager.updateMain;
         if (_um) SceneManager.updateMain = function () { _frames++; window.__iosFrames = _frames; return _um.apply(this, arguments); };
+        // instrument changeScene: capture why it doesn't swap
+        var _cs = SceneManager.changeScene;
+        if (_cs) SceneManager.changeScene = function () {
+            window.__csN = (window.__csN || 0) + 1;
+            if (this.isSceneChanging && this.isSceneChanging()) {
+                window.__csChanging = true;
+                window.__csBusy = this.isCurrentSceneBusy ? this.isCurrentSceneBusy() : "?";
+                try { window.__csReqQ = ImageManager._requestQueue._queue.length; } catch (e) { window.__csReqQ = "?"; }
+            }
+            return _cs.apply(this, arguments);
+        };
     }
 
     function baseName(p) { return String(p).replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop(); }
@@ -173,7 +184,10 @@
                  " q0=" + (typeof ImageManager !== "undefined" && ImageManager._requestQueue && ImageManager._requestQueue._queue && ImageManager._requestQueue._queue[0] ? ImageManager._requestQueue._queue[0].key : "-") +
                  " nextAtlas=" + (SceneManager._nextScene && SceneManager._nextScene.areAllRequiredAtlasLoaded ? SceneManager._nextScene.areAllRequiredAtlasLoaded() : "?") +
                  " frames=" + (window.__iosFrames || 0) +
-                 " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}");
+                 " csN=" + (window.__csN || 0) + " csBusy=" + window.__csBusy + " csReqQ=" + window.__csReqQ +
+                 " mSafari=" + (typeof Utils !== "undefined" && Utils.isMobileSafari ? Utils.isMobileSafari() : "?") +
+                 " accum=" + (SceneManager._accumulator && SceneManager._accumulator.toFixed ? SceneManager._accumulator.toFixed(3) : SceneManager._accumulator) +
+                 " img{ok:" + imgStat.ok + "}");
         } catch (e) { stat("probe err: " + e.message); }
     }
 

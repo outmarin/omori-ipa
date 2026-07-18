@@ -1,0 +1,7 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/CF8D2B8D-7D8A-4847-95B5-B0D28745528B/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] PROBE 5s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=115 img{ok:109,err:0}
+[http:] PROBE 12s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=534 img{ok:109,err:0}
+[http:] PROBE 25s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=1308 img{ok:109,err:0}
