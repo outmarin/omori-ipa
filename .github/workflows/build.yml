@@ -73,12 +73,11 @@ jobs:
           [ -z "$APP" ] && APP=$(find platforms/ios -maxdepth 5 -name "*.app" | head -1)
           echo "SIM_APP=$APP" >> $GITHUB_ENV
           echo "found: $APP"
-          echo "--- Info.plist version keys ---"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist" || echo "(CFBundleVersion missing)"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist" || echo "(short missing)"
-          # cordova sometimes fails to stamp the version -> force it so install works
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 1.0.8" "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1.0.8" "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.8" "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0.8" "$APP/Info.plist"
+          echo "===== FULL Info.plist BEFORE fix ====="
+          plutil -p "$APP/Info.plist" || cat "$APP/Info.plist"
+          bash ./ci/stamp_plist.sh "$APP/Info.plist"
+          echo "===== FULL Info.plist AFTER fix ====="
+          plutil -p "$APP/Info.plist"
 
       - name: Boot simulator, install, launch, screenshot
         run: |
@@ -111,8 +110,8 @@ jobs:
           [ -z "$APP" ] && APP=$(find platforms/ios -maxdepth 6 -name "*.app" ! -path "*imulator*" | head -1)
           echo "device app: $APP"
           if [ -n "$APP" ]; then
-            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 1.0.8" "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1.0.8" "$APP/Info.plist"
-            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.8" "$APP/Info.plist" 2>/dev/null || true
+            bash ./ci/stamp_plist.sh "$APP/Info.plist"
+            plutil -p "$APP/Info.plist"
             rm -rf Payload OMORI.ipa
             mkdir Payload
             cp -R "$APP" Payload/
