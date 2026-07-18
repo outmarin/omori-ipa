@@ -28,62 +28,53 @@ jobs:
         run: |
           xcodebuild -version
           node --version
-          which ffmpeg || brew install ffmpeg
 
-      - name: Install Cordova
-        run: npm i -g cordova@12
+      # Cache the built simulator .app. Key excludes ios-patches/ios_compat.js,
+      # so JS-only edits hit the cache and we just hot-swap the file (no rebuild).
+      - name: Cache built sim app
+        id: appcache
+        uses: actions/cache@v4
+        with:
+          path: simapp
+          key: omori-simapp-v1-${{ hashFiles('config.xml','package.json','.github/workflows/build.yml','ci/stamp_plist.sh') }}
 
-      - name: Download APK from release asset
+      # ---- heavy build, only on cache miss (or when making the device IPA) ----
+      - name: Full build (cache miss)
+        if: ${{ steps.appcache.outputs.cache-hit != 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_ipa == 'true') }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download "$APK_TAG" -p '*.apk' -O game.apk
-
-      - name: Extract www from APK
         run: |
-          mkdir -p extract
-          unzip -q game.apk 'assets/www/*' -d extract
-          mkdir -p www
-          cp -R extract/assets/www/. www/
-          rm -rf extract game.apk
-          echo "www size:"; du -sh www
-
-      - name: Apply iOS patches
-        run: |
-          # 1. inject the compat layer BEFORE main.js (it must override PluginManager.setup on the file:// page)
+          set -e
+          npm i -g cordova@12
+          which ffmpeg || brew install ffmpeg
+          gh release download "$APK_TAG" -p '*.apk' -O game.apk
+          mkdir -p extract && unzip -q game.apk 'assets/www/*' -d extract
+          mkdir -p www && cp -R extract/assets/www/. www/ && rm -rf extract game.apk
+          # inject compat layer BEFORE main.js
           cp ios-patches/ios_compat.js www/js/porting/ios_compat.js
           perl -0pi -e 's{(<script[^>]*src="js/main\.js"></script>)}{<script type="text/javascript" src="js/porting/ios_compat.js"></script>\n    $1}' www/index.html
-          grep -n "ios_compat" www/index.html || (echo "PATCH FAILED: ios_compat not injected" && exit 1)
-          # 2. transcode webm cutscenes -> mp4 (engine requests .mp4 on mobile)
+          grep -q ios_compat www/index.html || { echo "inject failed"; exit 1; }
+          # transcode webm cutscenes -> mp4
           shopt -s nullglob
-          for f in www/movies/*.webm; do
-            echo "transcode $f"
-            ffmpeg -y -loglevel error -i "$f" -c:v libx264 -pix_fmt yuv420p -profile:v high \
-                   -c:a aac -b:a 160k -movflags +faststart "${f%.webm}.mp4" && rm "$f"
-          done
-          ls www/movies | head
-
-      - name: Cordova add platform + plugins
-        run: |
+          for f in www/movies/*.webm; do ffmpeg -y -loglevel error -i "$f" -c:v libx264 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 160k -movflags +faststart "${f%.webm}.mp4" && rm "$f"; done
           cordova platform add ios@7 --no-telemetry
           cordova plugin add cordova-plugin-file cordova-plugin-insomnia cordova-plugin-httpd --no-telemetry
-          cordova plugin ls
-
-      # ---------- VERIFY: simulator build + launch + screenshot ----------
-      - name: Build for simulator
-        run: |
           set -o pipefail
-          cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -60
-          echo "--- locating .app ---"
-          find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" -print
+          cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -50
           APP=$(find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" | head -1)
           [ -z "$APP" ] && APP=$(find platforms/ios -maxdepth 5 -name "*.app" | head -1)
-          echo "SIM_APP=$APP" >> $GITHUB_ENV
-          echo "found: $APP"
-          echo "===== FULL Info.plist BEFORE fix ====="
-          plutil -p "$APP/Info.plist" || cat "$APP/Info.plist"
           bash ./ci/stamp_plist.sh "$APP/Info.plist"
-          echo "===== FULL Info.plist AFTER fix ====="
-          plutil -p "$APP/Info.plist"
+          rm -rf simapp && mkdir simapp && cp -R "$APP" simapp/
+          echo "cached: $(ls simapp)"
+
+      # ---- always: hot-swap the current ios_compat.js into the (cached) app ----
+      - name: Hot-swap ios_compat.js
+        run: |
+          APP=$(find simapp -maxdepth 1 -name "*.app" | head -1)
+          [ -z "$APP" ] && { echo "no app in simapp/"; exit 1; }
+          cp ios-patches/ios_compat.js "$APP/www/js/porting/ios_compat.js"
+          echo "SIM_APP=$APP" >> $GITHUB_ENV
+          echo "hot-swapped into $APP"; head -1 "$APP/www/js/porting/ios_compat.js"
 
       - name: Boot simulator, install, launch, screenshot
         run: |
@@ -99,7 +90,7 @@ jobs:
           # NOTE: no --console (it blocks until the app exits); launch returns the pid
           xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
           cat launch.txt
-          for t in 15 35 60 90; do
+          for t in 12 22 35; do
             sleep $((t - ${last:-0})); last=$t
             xcrun simctl io "$UDID" screenshot "shot_${t}s.png" || true
             echo "screenshot at ${t}s"

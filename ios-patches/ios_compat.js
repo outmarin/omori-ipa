@@ -168,7 +168,8 @@
                  " started=" + SceneManager._sceneStarted +
                  " next=" + (SceneManager._nextScene && SceneManager._nextScene.constructor && SceneManager._nextScene.constructor.name) +
                  " changing=" + (SceneManager.isSceneChanging && SceneManager.isSceneChanging()) +
-                 " sceneReady=" + (s && s.isReady ? s.isReady() : "?") +
+                 " busy=" + (s && s.isBusy ? s.isBusy() : "?") +
+                 " fade=" + (s && s._fadeDuration) +
                  " frames=" + (window.__iosFrames || 0) +
                  " img{ok:" + imgStat.ok + ",err:" + imgStat.err + "}");
         } catch (e) { stat("probe err: " + e.message); }
