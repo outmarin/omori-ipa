@@ -140,7 +140,15 @@
         if (savesReady) return;
         savesReady = true;
         installNativeFunctions(); // last-chance: ensure ours is live before first read
+        var n = Object.keys(window._SAYGEXES).length;
+        writeStatus("ios_compat OK; platform=" + cordova.platformId +
+                    "; preloadedSaves=" + n + "; docs=" + (cordova.file && cordova.file.documentsDirectory));
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
+    }
+
+    // single status file in documentsDirectory so CI can confirm we ran
+    function writeStatus(text) {
+        try { writeToDisk(null, "ios_status.txt", text); } catch (e) {}
     }
 
     SceneManager.terminate = noop; // iOS apps don't self-terminate

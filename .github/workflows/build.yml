@@ -94,12 +94,19 @@ jobs:
           # NOTE: no --console (it blocks until the app exits); launch returns the pid
           xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
           cat launch.txt
-          sleep 25; xcrun simctl io "$UDID" screenshot shot_25s.png || true
-          sleep 20; xcrun simctl io "$UDID" screenshot shot_45s.png || true
-          sleep 20; xcrun simctl io "$UDID" screenshot shot_65s.png || true
+          for t in 20 40 60 90 120; do
+            sleep $((t - ${last:-0})); last=$t
+            xcrun simctl io "$UDID" screenshot "shot_${t}s.png" || true
+            echo "screenshot at ${t}s"
+          done
           kill $LOGPID 2>/dev/null || true
-          echo "==== launch.txt ===="; cat launch.txt || true
-          echo "==== applog.txt (ios_compat/Scene lines) ===="; grep -E "ios_compat|Scene_|Boot|error|Error" applog.txt | head -80 || true
+          echo "==== app container Documents (save layer proof) ===="
+          DATA=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null) || true
+          echo "container: $DATA"
+          ls -la "$DATA/Documents" 2>/dev/null || echo "(no Documents)"
+          ls -la "$DATA/Documents/save" 2>/dev/null || echo "(no save dir)"
+          echo "---- ios_status.txt ----"; cat "$DATA/Documents/ios_status.txt" 2>/dev/null || echo "(no status file)"
+          cp "$DATA/Documents/ios_status.txt" ios_status.txt 2>/dev/null || true
 
       # ---------- RELEASE: unsigned device .app -> IPA ----------
       - name: Build unsigned device IPA
@@ -124,14 +131,22 @@ jobs:
             echo "no device .app produced"
           fi
 
-      - name: Upload artifacts
+      - name: Upload screenshots + logs (small, fast)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: omori-ios-${{ github.run_number }}
+          name: omori-screens-${{ github.run_number }}
           retention-days: 7
           path: |
             shot_*.png
             applog.txt
             launch.txt
-            OMORI.ipa
+            ios_status.txt
+
+      - name: Upload IPA (large, separate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omori-ipa-${{ github.run_number }}
+          retention-days: 7
+          path: OMORI.ipa
