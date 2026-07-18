@@ -11,16 +11,22 @@ function addFile(rel) { try { files[rel] = rd(rel); } catch (e) { console.error(
 
 ["data/Notes.yaml", "data/Quests.yaml", "data/Atlas.yaml"].forEach(addFile);
 
+// helper: record a directory listing in dirs AND embed its _DIRECTORY.json file
+function addDir(rel) {
+  const list = JSON.parse(rd(rel + "/_DIRECTORY.json"));
+  dirs[rel] = list;
+  addFile(rel + "/_DIRECTORY.json");
+  return list;
+}
+
 try {
-  JSON.parse(rd("Languages/_DIRECTORY.json")).forEach((lang) => {
+  addDir("Languages").forEach((lang) => {                 // top listing -> ["en", ...]
     const dir = "Languages/" + lang;
-    const list = JSON.parse(rd(dir + "/_DIRECTORY.json"));
-    dirs[dir] = list;
-    list.filter((f) => /\.yaml$/i.test(f)).forEach((f) => addFile(dir + "/" + f));
+    addDir(dir).filter((f) => /\.yaml$/i.test(f)).forEach((f) => addFile(dir + "/" + f));
   });
 } catch (e) { console.error("gen: languages failed " + e); }
 
-try { dirs["img/atlases"] = JSON.parse(rd("img/atlases/_DIRECTORY.json")); } catch (e) { console.error("gen: img/atlases dir MISS"); }
+try { addDir("img/atlases"); } catch (e) { console.error("gen: img/atlases dir MISS"); }
 
 const out = "window.__IOS_SYNC_FILES=" + JSON.stringify(files) + ";\n" +
             "window.__IOS_SYNC_DIRS=" + JSON.stringify(dirs) + ";\n";
