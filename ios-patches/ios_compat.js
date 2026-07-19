@@ -177,40 +177,48 @@
         try { wrap(window.Scene_OmoriTitleScreen, ["create", "start"]); } catch (e) {}
         try { wrap(window.Scene_Title, ["create", "start"]); } catch (e) {}
     }
-    // Root cause: OMORI's loading animation requests a bitmap every frame, so
-    // ImageManager.isReady() is briefly false exactly when the per-frame
-    // changeScene()/isReady() checks run -> transitions & scene-starts never fire.
-    // It IS ready between frames, so a setInterval watchdog forces progress.
-    function startWatchdog() {
-        var lastKey = null, same = 0;
+    function firstNotReady() {
+        try {
+            var items = ImageManager._imageCache && ImageManager._imageCache._items;
+            for (var k in items) {
+                var b = items[k].bitmap;
+                if (b && !b.isRequestOnly() && !b.isReady())
+                    return (b._url || k).split("/").slice(-2).join("/") + ":" + b._loadingState;
+            }
+        } catch (e) { return "err:" + e.message; }
+        return "-";
+    }
+    // Passive monitor (NO state mutation). Logs every state transition and, when
+    // a transition/start stalls >2s, logs exactly which gate blocks it.
+    function monitor() {
+        var lastKey = null, stuckSince = 0, stuckLogged = false, ticks = 0;
         setInterval(function () {
+            ticks++;
             var SM = SceneManager, s = SM._scene;
-            var key = (s && s.constructor.name) + "|" + (SM._nextScene && SM._nextScene.constructor.name) + "|" + SM._sceneStarted;
-            if (key === lastKey) same++; else same = 0;
-            lastKey = key;
-            if (same < 1) return; // stuck for ~1.2s
-
-            try {
-                if (SM._nextScene) {                       // pending transition -> force swap
-                    var ns = SM._nextScene;
-                    if (s) { s.terminate(); s.detachReservation(); }
-                    SM._scene = ns; SM._nextScene = null;
-                    ns.attachReservation(); ns.create(); SM._sceneStarted = false;
-                    if (SM.onSceneCreate) SM.onSceneCreate();
-                    stat("WATCHDOG swap -> " + ns.constructor.name);
-                    same = 0;
-                } else if (s && !SM._sceneStarted) {        // created but never started -> force start
-                    s.start(); SM._sceneStarted = true;
-                    if (SM.onSceneStart) SM.onSceneStart();
-                    stat("WATCHDOG start " + s.constructor.name);
-                    same = 0;
-                }
-            } catch (e) { stat("watchdog err @" + (s && s.constructor.name) + ": " + e.message + " | " + String(e.stack || "").split("\n").slice(0, 3).join(" << ")); same = 0; }
-        }, 1200);
+            var busy = false, ready = false;
+            try { busy = SM.isCurrentSceneBusy(); } catch (e) {}
+            try { ready = s && s.isReady(); } catch (e) {}
+            var changing = SM.isSceneChanging && SM.isSceneChanging();
+            var key = (s && s.constructor.name) + "|st=" + SM._sceneStarted + "|chg=" + changing + "|busy=" + busy + "|rdy=" + ready;
+            if (key !== lastKey) {
+                stat("STATE " + key + " f=" + (window.__iosFrames || 0));
+                lastKey = key; stuckSince = ticks; stuckLogged = false;
+                return;
+            }
+            // same state persisting
+            var pending = changing || (s && !SM._sceneStarted);
+            if (pending && !stuckLogged && ticks - stuckSince >= 8) { // ~2s
+                stuckLogged = true;
+                if (changing && busy) stat("STUCK-SWAP busy fadeDur=" + (s && s._fadeDuration) + " nx=" + (SM._nextScene && SM._nextScene.constructor.name));
+                else if (changing && !busy) stat("STUCK-SWAP not-busy-but-no-swap nx=" + (SM._nextScene && SM._nextScene.constructor.name) + " f=" + (window.__iosFrames || 0));
+                else if (!SM._sceneStarted && !ready) stat("STUCK-START notReady first=" + firstNotReady());
+                else if (!SM._sceneStarted && ready) stat("STUCK-START ready-but-not-started (loop dead?) f=" + (window.__iosFrames || 0));
+            }
+        }, 250);
     }
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions(); hookImages(); hookScenes(); startWatchdog();
+        installNativeFunctions(); hookImages(); hookScenes(); monitor();
         if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
         [5000, 12000, 25000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
     }
