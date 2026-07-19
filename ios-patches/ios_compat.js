@@ -21,7 +21,12 @@
     var PORT = 8081;
     var noop = function () {};
     var statusLines = [];
-    function stat(s) { statusLines.push("[" + location.protocol + "] " + s); console.log("[ios_compat] " + s); try { writeStatus(); } catch (e) {} }
+    function stat(s) {
+        statusLines.push("[" + location.protocol + "] " + s);
+        if (statusLines.length > 80) statusLines.shift(); // bounded: no unbounded growth over a long session
+        console.log("[ios_compat] " + s);
+        try { writeStatus(); } catch (e) {}
+    }
     function writeStatus() {
         if (!window.cordova || !cordova.file || !cordova.file.documentsDirectory) return;
         writeDocs(null, "ios_status.txt", statusLines.join("\n"));
@@ -209,9 +214,10 @@
     // Passive monitor (NO state mutation). Logs every state transition and, when
     // a transition/start stalls >2s, logs exactly which gate blocks it.
     function monitor() {
-        var lastKey = null, stuckSince = 0, stuckLogged = false, ticks = 0;
-        setInterval(function () {
+        var lastKey = null, stuckSince = 0, stuckLogged = false, ticks = 0, iv;
+        iv = setInterval(function () {
             ticks++;
+            if (ticks > 240) { clearInterval(iv); return; } // stop after ~60s; boot is long done, no ongoing overhead
             var SM = SceneManager, s = SM._scene;
             var busy = false, ready = false;
             try { busy = SM.isCurrentSceneBusy(); } catch (e) {}
