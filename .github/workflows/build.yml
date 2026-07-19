@@ -18,6 +18,8 @@ jobs:
   build:
     runs-on: macos-14
     timeout-minutes: 90
+    permissions:
+      contents: write   # needed to publish the IPA as a Release asset
     env:
       APK_TAG: v1
       BUNDLE_ID: com.poring.omori.ru
@@ -159,7 +161,7 @@ jobs:
             ios_status.txt
 
       - name: Upload IPA (large, separate)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_ipa }}
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.build_ipa }}
         uses: actions/upload-artifact@v4
         with:
           name: omori-ipa-${{ github.run_number }}
