@@ -73,6 +73,9 @@ jobs:
           APP=$(find simapp -maxdepth 1 -name "*.app" | head -1)
           [ -z "$APP" ] && { echo "no app in simapp/"; exit 1; }
           cp ios-patches/ios_compat.js "$APP/www/js/porting/ios_compat.js"
+          # CI-only: enable the in-game smoke test (press New Game at title).
+          # Appended AFTER the IIFE so it just sets a global at load; never in the device IPA.
+          echo 'window.__OMORI_CI_AUTOTEST=true;' >> "$APP/www/js/porting/ios_compat.js"
           echo "SIM_APP=$APP" >> $GITHUB_ENV
           echo "hot-swapped into $APP"; head -1 "$APP/www/js/porting/ios_compat.js"
 
@@ -90,7 +93,7 @@ jobs:
           # NOTE: no --console (it blocks until the app exits); launch returns the pid
           xcrun simctl launch "$UDID" "$BUNDLE_ID" > launch.txt 2>&1 || true
           cat launch.txt
-          for t in 12 22 35; do
+          for t in 10 20 35 50 65; do
             sleep $((t - ${last:-0})); last=$t
             xcrun simctl io "$UDID" screenshot "shot_${t}s.png" || true
             echo "screenshot at ${t}s"

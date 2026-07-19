@@ -1,0 +1,10 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/84B56837-B829-4DBC-B918-A90A15DA8418/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] PROBE 5s: scene=null db=false font=true ImgReady=true SceneBaseReady=true started=false next=Scene_Boot changing=true realBusy=null reqQ=0 q0=- nextAtlas=true frames=0 csN=0 csState=[undefined] goto{n:1,last:Scene_Boot} mSafari=true imReadyNow=true stuck=[] img{ok:0}
+[http:] PROBE 12s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=74 csN=74 csState=[chg=false sc=Scene_Boot nx=null busy=false] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:109}
+[http:] LIFE Scene_Boot.terminate
+[http:] WATCHDOG swap -> Scene_SplashScreens
+[http:] WATCHDOG start Scene_SplashScreens
+[http:] PROBE 25s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=848 csN=848 csState=[chg=false sc=Scene_Boot nx=null busy=false] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}

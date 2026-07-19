@@ -1,0 +1,18 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/A3C2A34F-30D2-4EE3-9D26-BF898D986C7F/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] STATE null|st=false|chg=false|busy=null|rdy=null f=0
+[http:] LOOP@1 this===winSM:false this===closureSM:false thisScene:null winScene:null winSM===closureSM:true
+[http:] STATE Scene_Boot|st=false|chg=false|busy=true|rdy=false f=1
+[http:] PROBE 5s: scene=Scene_Boot db=true font=true ImgReady=false SceneBaseReady=false started=false next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=1 csN=1 csState=[chg=true sc=null nx=Scene_Boot busy=null sameSM=false gnx=Scene_Boot] goto{n:1,last:Scene_Boot} mSafari=true imReadyNow=false stuck=["system/Window.png:requesting","system/IconSet.png:requesting","system/Balloon.png:requesting","system/Shadow1.png:requesting","system/Shadow2.png:requesting","system/Damage.png:requesting","system/States.png:requesting","system/Weapons1.png:requesting"] img{ok:0}
+[http:] STATE Scene_Boot|st=false|chg=false|busy=false|rdy=false f=2
+[http:] STATE Scene_Boot|st=true|chg=true|busy=false|rdy=true f=13
+[http:] STUCK-SWAP not-busy-but-no-swap nx=Scene_SplashScreens f=131
+[http:] LIFE Scene_Boot.terminate
+[http:] NUDGE Scene_Boot -> Scene_SplashScreens
+[http:] STATE Scene_SplashScreens|st=false|chg=false|busy=false|rdy=true f=146
+[http:] STUCK-START ready-but-not-started (loop dead?) f=264
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=true|rdy=true f=280
+[http:] PROBE 12s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=289 csN=291 csState=[chg=false sc=Scene_Boot nx=null busy=false sameSM=false gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 25s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=1065 csN=1067 csState=[chg=false sc=Scene_Boot nx=null busy=false sameSM=false gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}

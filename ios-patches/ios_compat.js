@@ -246,9 +246,39 @@
             }
         }, 250);
     }
+    // CI-only smoke test: once the title screen is up, press OK to start a new
+    // game and confirm the game advances past the title. Gated on a flag the CI
+    // appends to this file after build; the shipped device IPA never sets it.
+    function ciAutotest() {
+        if (!window.__OMORI_CI_AUTOTEST) return;
+        var fired = false;
+        var iv = setInterval(function () {
+            var s = window.SceneManager._scene, n = s && s.constructor.name;
+            if (!fired && n === "Scene_OmoriTitleScreen" && window.SceneManager._sceneStarted) {
+                fired = true; clearInterval(iv);
+                stat("CI: title up -> pressing OK (new game) in 1.5s");
+                setTimeout(function () {
+                    try {
+                        if (window.Input && Input._onKeyDown) {
+                            Input._onKeyDown({ keyCode: 13, preventDefault: function () {} });
+                            setTimeout(function () { try { Input._onKeyUp({ keyCode: 13 }); } catch (e) {} }, 200);
+                            stat("CI: Input._onKeyDown(ok=Enter) sent");
+                        } else {
+                            var ev = new KeyboardEvent("keydown", { bubbles: true });
+                            Object.defineProperty(ev, "keyCode", { value: 13 });
+                            Object.defineProperty(ev, "which", { value: 13 });
+                            document.dispatchEvent(ev);
+                            stat("CI: dispatched keydown fallback");
+                        }
+                    } catch (e) { stat("CI press err: " + e.message); }
+                    setTimeout(function () { stat("CI: 4s after OK scene=" + (window.SceneManager._scene && window.SceneManager._scene.constructor.name)); }, 4000);
+                }, 1500);
+            }
+        }, 300);
+    }
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions(); hookImages(); hookScenes(); monitor();
+        installNativeFunctions(); hookImages(); hookScenes(); monitor(); ciAutotest();
         if (pendingBoot) {
             var g = window.SceneManager, s = pendingBoot; pendingBoot = null;
             stat("release: global===evalSM=" + (g === SceneManager) + " gMark=" + g.__iosMark);

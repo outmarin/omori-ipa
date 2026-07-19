@@ -1,0 +1,11 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/21F96C63-FE02-47E8-B5FA-61DFD8DC172A/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] STATE null|st=false|chg=false|busy=null|rdy=null f=0
+[http:] STATE Scene_Boot|st=false|chg=false|busy=true|rdy=false f=1
+[http:] PROBE 5s: scene=Scene_Boot db=true font=true ImgReady=false SceneBaseReady=false started=false next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=2 csN=2 csState=[chg=false sc=Scene_Boot nx=null busy=true] goto{n:1,last:Scene_Boot} mSafari=true imReadyNow=false stuck=["characters/FA_OMORI_3.png:requesting"] img{ok:108}
+[http:] STATE Scene_Boot|st=true|chg=true|busy=false|rdy=true f=15
+[http:] STUCK-SWAP not-busy-but-no-swap nx=Scene_SplashScreens f=127
+[http:] PROBE 12s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=278 csN=278 csState=[chg=false sc=Scene_Boot nx=null busy=false] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:109}
+[http:] PROBE 25s: scene=Scene_Boot db=true font=true ImgReady=true SceneBaseReady=true started=true next=Scene_SplashScreens changing=true realBusy=false reqQ=0 q0=- nextAtlas=true frames=1051 csN=1051 csState=[chg=false sc=Scene_Boot nx=null busy=false] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:109}

@@ -1,0 +1,19 @@
+[http:] http phase: real run
+[http:] run() called this===closureSM:true ready=false stack:@http://127.0.0.1:8081/js/porting/ios_compat.js:178:42 << @http://127.0.0.1:8081/js/plugins/YEP_CoreEngine.js:1367:36 << @http://127.0.0.1:8081/js/main.js:8:21
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/5CDFAD10-9BA0-4C27-AC70-C30C42BCC349/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] requestUpdate() 1st this===closureSM:false stack:@http://127.0.0.1:8081/js/porting/ios_compat.js:187:46 << @http://127.0.0.1:8081/js/rpg_managers.js:1808:27 << releaseBoot@http://127.0.0.1:8081/js/porting/ios_compat.js:261:73 << @http://127.0.0.1:8081/js/porting/ios_compat.js:313:109
+[http:] LOOP@1 this===winSM:false this===closureSM:false thisScene:null winScene:null winSM===closureSM:true
+[http:] STATE Scene_Boot|st=false|chg=false|busy=true|rdy=false f=1
+[http:] LIFE Scene_Boot.start
+[http:] STATE Scene_Boot|st=true|chg=true|busy=false|rdy=true f=10
+[http:] STUCK-SWAP not-busy-but-no-swap nx=Scene_SplashScreens f=128
+[http:] LIFE Scene_Boot.terminate
+[http:] NUDGE Scene_Boot -> Scene_SplashScreens
+[http:] STATE Scene_SplashScreens|st=false|chg=false|busy=false|rdy=true f=143
+[http:] PROBE 5s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=false next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=170 csN=171 csState=[chg=false sc=Scene_Boot nx=null busy=false sameSM=false gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] STUCK-START ready-but-not-started (loop dead?) f=263
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=true|rdy=true f=278
+[http:] PROBE 12s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=590 csN=592 csState=[chg=false sc=Scene_Boot nx=null busy=false sameSM=false gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 25s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=true reqQ=0 q0=- nextAtlas=? frames=1364 csN=1366 csState=[chg=false sc=Scene_Boot nx=null busy=false sameSM=false gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
