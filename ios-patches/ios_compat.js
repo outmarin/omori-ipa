@@ -345,9 +345,27 @@
             }
         }, 300);
     }
+    // iOS: the per-letter message sound (SYS_text, played ~30x/sec) is silent
+    // because AudioStreaming re-fetches+re-decodes the ogg via stbvorbis on every
+    // playSe() — it can't keep up, so nothing ever finishes decoding. Route it
+    // through the STATIC-SE path (decode once, replay the cached buffer).
+    function fixLetterSound() {
+        if (typeof SoundManager === "undefined" || SoundManager.__iosLetter) return;
+        if (typeof SoundManager.playMessageSound !== "function") return; // YEP letter-sound plugin absent
+        SoundManager.__iosLetter = true;
+        SoundManager.playMessageSound = function () {
+            try {
+                var se = (typeof $gameSystem !== "undefined" && $gameSystem.getMessageSound) ? $gameSystem.getMessageSound() : null;
+                if (se && se.name) AudioManager.playStaticSe(se);
+                if (!window.__letterLogged) { window.__letterLogged = true; stat("letterSound -> playStaticSe name=" + (se && se.name)); }
+            } catch (e) { if (!window.__letterErr) { window.__letterErr = 1; stat("letterSound err: " + e.message); } }
+        };
+        // Warm the static cache so the very first letters aren't dropped mid-decode.
+        setTimeout(function () { try { AudioManager.loadStaticSe({ name: "SYS_text" }); stat("preloaded SYS_text (static)"); } catch (e) {} }, 4000);
+    }
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions(); hookImages(); hookScenes(); hookTitleCredit(); monitor(); ciAutotest();
+        installNativeFunctions(); hookImages(); hookScenes(); hookTitleCredit(); fixLetterSound(); monitor(); ciAutotest();
         if (pendingBoot) {
             var g = window.SceneManager, s = pendingBoot; pendingBoot = null;
             stat("release: global===evalSM=" + (g === SceneManager) + " gMark=" + g.__iosMark);
