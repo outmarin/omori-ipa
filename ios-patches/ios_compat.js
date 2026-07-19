@@ -377,21 +377,42 @@
         if (typeof SoundManager === "undefined" || SoundManager.__iosLetter) return;
         if (typeof SoundManager.playMessageSound !== "function") return; // YEP letter-sound plugin absent
         SoundManager.__iosLetter = true;
-        var abuf = null, actx = null, loader = null;
+        var abuf = null, actx = null;
         function ctx() { return (window.StreamWebAudio && StreamWebAudio._context) || (window.WebAudio && WebAudio._context) || null; }
-        function grab() {
+        // Decode SYS_text.ogg ONCE via stbvorbis into one AudioBuffer (same decoder
+        // the game uses). Independent of AudioManager's streaming buffer internals.
+        function decodeOnce() {
             try {
-                actx = ctx() || actx;
-                if (!loader && window.AudioManager && AudioManager.createBuffer) loader = AudioManager.createBuffer("se", "SYS_text");
-                if (loader && loader._chunks && loader._chunks[0] && loader._chunks[0].buffer) {
-                    abuf = loader._chunks[0].buffer;
-                    stat("letterSound: buffer ready dur=" + abuf.duration.toFixed(3) + " ctx=" + !!actx);
-                    return true;
-                }
-            } catch (e) { if (!window.__lsg) { window.__lsg = 1; stat("letterSound grab err: " + e.message); } }
-            return false;
+                actx = ctx();
+                if (!actx || !window.stbvorbis || !stbvorbis.decodeStream) return false;
+                if (window.__lsDecoding) return true; window.__lsDecoding = true;
+                fetch("audio/se/SYS_text.ogg").then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+                    var chans = [], sr = 0, n = 0;
+                    var feed = stbvorbis.decodeStream(function (res) {
+                        if (res.error) { stat("letterSound decode err: " + res.error); return; }
+                        if (res.eof) {
+                            if (!n) { stat("letterSound: no PCM"); return; }
+                            var lens = chans[0].reduce(function (a, x) { return a + x.length; }, 0);
+                            var buf = actx.createBuffer(chans.length, lens, sr);
+                            for (var c = 0; c < chans.length; c++) {
+                                var out = buf.getChannelData(c), off = 0;
+                                for (var k = 0; k < chans[c].length; k++) { out.set(chans[c][k], off); off += chans[c][k].length; }
+                            }
+                            abuf = buf; stat("letterSound: decoded dur=" + buf.duration.toFixed(3) + " sr=" + sr);
+                            return;
+                        }
+                        if (res.data && res.data[0] && res.data[0].length) {
+                            sr = res.sampleRate; n++;
+                            for (var i = 0; i < res.data.length; i++) { (chans[i] = chans[i] || []).push(res.data[i]); }
+                        }
+                    });
+                    feed({ data: new Uint8Array(ab), eof: false });
+                    feed({ eof: true });
+                }).catch(function (e) { stat("letterSound fetch err: " + e.message); window.__lsDecoding = false; });
+                return true;
+            } catch (e) { stat("letterSound decodeOnce err: " + e.message); return false; }
         }
-        var tries = 0, iv = setInterval(function () { if (grab() || ++tries > 80) clearInterval(iv); }, 400);
+        var tries = 0, iv = setInterval(function () { decodeOnce(); if (abuf || ++tries > 80) clearInterval(iv); }, 500);
         SoundManager.playMessageSound = function () {
             try {
                 var se = (typeof $gameSystem !== "undefined" && $gameSystem.getMessageSound) ? $gameSystem.getMessageSound() : null;
@@ -407,7 +428,7 @@
                     if (actx.state === "suspended" && actx.resume) actx.resume();
                     src.start(0);
                 } else {
-                    AudioManager.playStaticSe(se); // fallback until the buffer is decoded
+                    AudioManager.playStaticSe(se); // fallback until decoded
                 }
                 if (!window.__letterLogged) { window.__letterLogged = true; stat("letterSound play buf=" + !!abuf); }
             } catch (e) { if (!window.__letterErr) { window.__letterErr = 1; stat("letterSound err: " + e.message); } }
