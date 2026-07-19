@@ -173,7 +173,21 @@
 
     // hold boot until the save cache is warm (StorageManager cold reads are sync)
     var ready = false, pendingBoot = null, _run = SceneManager.run.bind(SceneManager);
-    SceneManager.run = function (sc) { if (ready) return _run(sc); pendingBoot = sc; };
+    SceneManager.run = function (sc) {
+        stat("run() called this===closureSM:" + (this === SceneManager) + " ready=" + ready +
+             " stack:" + String(new Error().stack || "").replace(/\n/g, " << ").slice(0, 220));
+        if (ready) return _run(sc); pendingBoot = sc;
+    };
+    // who starts the render loop, and on what object?
+    var _ru = SceneManager.requestUpdate;
+    SceneManager.requestUpdate = function () {
+        if (!window.__ruLogged) {
+            window.__ruLogged = true;
+            stat("requestUpdate() 1st this===closureSM:" + (this === SceneManager) +
+                 " stack:" + String(new Error().stack || "").replace(/\n/g, " << ").slice(0, 260));
+        }
+        return _ru.apply(this, arguments);
+    };
     function hookScenes() {
         function wrap(cls, methods) {
             if (typeof cls === "undefined" || !cls) return;
