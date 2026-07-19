@@ -1,0 +1,22 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/DF30D07A-A712-42EA-8E60-FBC78D9E20D9/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] release: global===evalSM=true gMark=EVAL
+[http:] STATE Scene_Boot|st=false|chg=false|busy=true|rdy=false f=0
+[http:] LIFE Scene_Boot.start
+[http:] STATE Scene_Boot|st=true|chg=true|busy=false|rdy=true f=0
+[http:] LIFE Scene_Boot.terminate
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=true|rdy=true f=0
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=false|rdy=true f=0
+[http:] PROBE 5s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=196 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 12s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=615 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 25s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=1393 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] LIFE Scene_OmoriTitleScreen.create
+[http:] STATE Scene_OmoriTitleScreen|st=false|chg=false|busy=false|rdy=false f=0
+[http:] STATE Scene_OmoriTitleScreen|st=false|chg=false|busy=false|rdy=true f=0
+[http:] LIFE Scene_OmoriTitleScreen.start
+[http:] STATE Scene_OmoriTitleScreen|st=true|chg=false|busy=false|rdy=true f=0
+[http:] CI: title up -> pressing OK (new game) in 1.5s
+[http:] CI: Input._onKeyDown(ok=Enter) sent
+[http:] CI: 4s after OK scene=Scene_OmoriTitleScreen

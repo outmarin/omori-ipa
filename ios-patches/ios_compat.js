@@ -256,23 +256,29 @@
             var s = window.SceneManager._scene, n = s && s.constructor.name;
             if (!fired && n === "Scene_OmoriTitleScreen" && window.SceneManager._sceneStarted) {
                 fired = true; clearInterval(iv);
-                stat("CI: title up -> pressing OK (new game) in 1.5s");
+                stat("CI: title up -> starting New Game in 4s (let intro settle)");
                 setTimeout(function () {
+                    var s2 = window.SceneManager._scene;
                     try {
+                        // Try realistic input first ('ok' selects the highlighted New Game)
                         if (window.Input && Input._onKeyDown) {
                             Input._onKeyDown({ keyCode: 13, preventDefault: function () {} });
-                            setTimeout(function () { try { Input._onKeyUp({ keyCode: 13 }); } catch (e) {} }, 200);
-                            stat("CI: Input._onKeyDown(ok=Enter) sent");
-                        } else {
-                            var ev = new KeyboardEvent("keydown", { bubbles: true });
-                            Object.defineProperty(ev, "keyCode", { value: 13 });
-                            Object.defineProperty(ev, "which", { value: 13 });
-                            document.dispatchEvent(ev);
-                            stat("CI: dispatched keydown fallback");
+                            setTimeout(function () { try { Input._onKeyUp({ keyCode: 13 }); } catch (e) {} }, 120);
+                            stat("CI: pressed OK");
                         }
                     } catch (e) { stat("CI press err: " + e.message); }
-                    setTimeout(function () { stat("CI: 4s after OK scene=" + (window.SceneManager._scene && window.SceneManager._scene.constructor.name)); }, 4000);
-                }, 1500);
+                    // Fallback: if still on title 2.5s later, invoke New Game directly
+                    setTimeout(function () {
+                        var s3 = window.SceneManager._scene;
+                        if (s3 && s3.constructor.name === "Scene_OmoriTitleScreen") {
+                            try {
+                                s3._commandIndex = 0;
+                                if (s3.commandNewGame) { s3.commandNewGame(); stat("CI: commandNewGame() called directly"); }
+                            } catch (e) { stat("CI newgame err: " + e.message); }
+                        }
+                        setTimeout(function () { stat("CI: post-newgame scene=" + (window.SceneManager._scene && window.SceneManager._scene.constructor.name)); }, 3000);
+                    }, 2500);
+                }, 4000);
             }
         }, 300);
     }
