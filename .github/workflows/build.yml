@@ -131,6 +131,21 @@ jobs:
             echo "no device .app produced"
           fi
 
+      - name: Publish IPA to public Release (direct download link)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_ipa }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f OMORI.ipa ]; then
+            gh release delete ipa --yes --cleanup-tag 2>/dev/null || true
+            gh release create ipa OMORI.ipa \
+              --title "OMORI iOS (unsigned IPA for LiveContainer)" \
+              --notes "Unsigned IPA for LiveContainer/AltStore/Sideloadly. Build ${{ github.run_number }}."
+            echo "IPA published: https://github.com/${{ github.repository }}/releases/download/ipa/OMORI.ipa"
+          else
+            echo "no IPA to publish"; exit 1
+          fi
+
       - name: Upload screenshots + logs (small, fast)
         if: always()
         uses: actions/upload-artifact@v4
