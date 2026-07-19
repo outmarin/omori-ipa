@@ -92,6 +92,37 @@
     // =====================================================================
     stat("http phase: real run");
 
+    // ---------------------------------------------------------------------
+    //  Screen fit: on a notched iPhone in landscape the webview reports its
+    //  real size only after it settles, so RPG MV's one-shot layout leaves the
+    //  canvas mis-scaled / shifted. Force a re-layout after settle + on rotate.
+    //  Universal (no per-device values); a no-op when already correct.
+    // ---------------------------------------------------------------------
+    function relayout() {
+        try {
+            if (window.Graphics && Graphics._updateAllElements) {
+                Graphics._updateAllElements();
+                stat("relayout innerW=" + window.innerWidth + " innerH=" + window.innerHeight +
+                     " scale=" + (Graphics._realScale != null ? Graphics._realScale.toFixed(3) : "?") +
+                     " safe=[" + safeInsets() + "]");
+            }
+        } catch (e) {}
+    }
+    function safeInsets() {
+        try {
+            var s = getComputedStyle(document.documentElement);
+            return ["top", "right", "bottom", "left"].map(function (k) {
+                var d = document.createElement("div");
+                d.style.cssText = "position:fixed;padding:env(safe-area-inset-" + k + ")";
+                document.body.appendChild(d);
+                var v = getComputedStyle(d).paddingTop; document.body.removeChild(d); return v;
+            }).join(",");
+        } catch (e) { return "?"; }
+    }
+    window.addEventListener("resize", function () { setTimeout(relayout, 60); setTimeout(relayout, 300); });
+    window.addEventListener("orientationchange", function () { [100, 400, 900].forEach(function (m) { setTimeout(relayout, m); }); });
+    [400, 1000, 2000, 3500].forEach(function (m) { setTimeout(relayout, m); });
+
     // capture real errors (engine hides them behind its red screen)
     window.addEventListener("error", function (ev) {
         stat("JS ERR: " + (ev.message || "") + " @ " + (ev.filename || "").split("/").pop() + ":" + ev.lineno +
@@ -200,6 +231,32 @@
         try { wrap(window.Scene_OmoriTitleScreen, ["create", "start"]); } catch (e) {}
         try { wrap(window.Scene_Title, ["create", "start"]); } catch (e) {}
     }
+    // Separate iOS-port credit on the title screen (does NOT touch the original
+    // RU porters' "ported by" button — they keep their credit/link).
+    function hookTitleCredit() {
+        var T = window.Scene_OmoriTitleScreen;
+        if (!T || T.prototype.__creditHook) return;
+        T.prototype.__creditHook = true;
+        var _start = T.prototype.start;
+        T.prototype.start = function () {
+            if (_start) _start.apply(this, arguments);
+            try {
+                if (this.__credit) return;
+                var w = Graphics.width;
+                var bmp = new Bitmap(w, 22);
+                bmp.fontSize = 13;
+                bmp.textColor = "#ffffff";
+                bmp.outlineColor = "rgba(0,0,0,0.9)";
+                bmp.outlineWidth = 4;
+                bmp.drawText("iOS port: nanomolydev  ·  @nanomolydev", 4, 2, w - 8, 20, "left");
+                var sp = new Sprite(bmp);
+                sp.x = 0; sp.y = 2;
+                this.addChild(sp);
+                this.__credit = sp;
+                stat("title credit added");
+            } catch (e) { stat("credit err: " + e.message); }
+        };
+    }
     function firstNotReady() {
         try {
             var items = ImageManager._imageCache && ImageManager._imageCache._items;
@@ -290,7 +347,7 @@
     }
     function releaseBoot() {
         if (ready) return; ready = true;
-        installNativeFunctions(); hookImages(); hookScenes(); monitor(); ciAutotest();
+        installNativeFunctions(); hookImages(); hookScenes(); hookTitleCredit(); monitor(); ciAutotest();
         if (pendingBoot) {
             var g = window.SceneManager, s = pendingBoot; pendingBoot = null;
             stat("release: global===evalSM=" + (g === SceneManager) + " gMark=" + g.__iosMark);

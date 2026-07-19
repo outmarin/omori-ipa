@@ -1,0 +1,32 @@
+[http:] http phase: real run
+[http:] deviceready; docs=file:///Users/runner/Library/Developer/CoreSimulator/Devices/CE505324-B3F4-4B42-8BC5-419D92D4505A/data/Containers/Data/Application/9D4A02E5-FCC6-4FB9-BB66-4D10720A3CA6/Documents/
+[http:] NativeFunctions installed (documentsDirectory)
+[http:] saves=0
+[http:] release: global===evalSM=true gMark=EVAL
+[http:] STATE Scene_Boot|st=false|chg=false|busy=true|rdy=false f=0
+[http:] LIFE Scene_Boot.start
+[http:] STATE Scene_Boot|st=true|chg=true|busy=false|rdy=true f=0
+[http:] LIFE Scene_Boot.terminate
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=true|rdy=true f=0
+[http:] STATE Scene_SplashScreens|st=true|chg=false|busy=false|rdy=true f=0
+[http:] PROBE 5s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=174 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 12s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=592 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] PROBE 25s: scene=Scene_SplashScreens db=true font=true ImgReady=true SceneBaseReady=true started=true next=null changing=false realBusy=false reqQ=0 q0=- nextAtlas=? frames=0 csN=1360 csState=[chg=false sc=Scene_SplashScreens nx=null busy=false sameSM=true gnx=null] goto{n:2,last:Scene_SplashScreens} mSafari=true imReadyNow=true stuck=[] img{ok:110}
+[http:] STATE Scene_SplashScreens|st=true|chg=true|busy=true|rdy=false f=0
+[http:] LIFE Scene_OmoriTitleScreen.create
+[http:] STATE Scene_OmoriTitleScreen|st=false|chg=false|busy=false|rdy=false f=0
+[http:] STATE Scene_OmoriTitleScreen|st=false|chg=false|busy=false|rdy=true f=0
+[http:] LIFE Scene_OmoriTitleScreen.start
+[http:] STATE Scene_OmoriTitleScreen|st=true|chg=false|busy=false|rdy=true f=0
+[http:] CI: title up -> starting New Game in 4s (let intro settle)
+[http:] CI: pressed OK
+[http:] CI: commandNewGame() called directly
+[http:] STATE Scene_OmoriTitleScreen|st=true|chg=true|busy=true|rdy=true f=0
+[http:] STATE Scene_Map|st=false|chg=false|busy=false|rdy=false f=0
+[http:] STATE Scene_Map|st=false|chg=false|busy=false|rdy=true f=0
+[http:] STATE Scene_Map|st=true|chg=false|busy=false|rdy=true f=0
+[http:] CI: post-newgame scene=Scene_Map
+[http:] STATE Scene_Map|st=true|chg=false|busy=false|rdy=false f=0
+[http:] STATE Scene_Map|st=true|chg=false|busy=false|rdy=true f=0
+[http:] STATE Scene_Map|st=true|chg=false|busy=false|rdy=false f=0
+[http:] STATE Scene_Map|st=true|chg=false|busy=false|rdy=true f=0

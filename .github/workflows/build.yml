@@ -56,6 +56,10 @@ jobs:
           cp ios-patches/ios_compat.js www/js/porting/ios_compat.js
           perl -0pi -e 's{(<script[^>]*src="js/main\.js"></script>)}{<script type="text/javascript" src="js/porting/ios_compat.js"></script>\n    $1}' www/index.html
           grep -q ios_compat www/index.html || { echo "inject failed"; exit 1; }
+          # iOS-port splash: add nanomolydev credit splash + register it in the GALV splash sequence
+          cp ios-patches/splashNano.png www/img/system/splashNano.png
+          perl -0pi -e 's{splashGalv3,640,3,480}{splashGalv3,640,3,480|splashNano,300,3,0}' www/js/plugins.js
+          grep -q splashNano www/js/plugins.js || { echo "splash inject failed"; exit 1; }
           # transcode webm cutscenes -> mp4
           shopt -s nullglob
           for f in www/movies/*.webm; do ffmpeg -y -loglevel error -i "$f" -c:v libx264 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 160k -movflags +faststart "${f%.webm}.mp4" && rm "$f"; done
