@@ -248,7 +248,7 @@
                 bmp.textColor = "#ffffff";
                 bmp.outlineColor = "rgba(0,0,0,0.9)";
                 bmp.outlineWidth = 4;
-                bmp.drawText("iOS port: nanomolydev  ·  @nanomolydev", 4, 2, w - 8, 20, "left");
+                bmp.drawText("iOS port: nanomolydev  ·  @nanoholymoly", 4, 2, w - 8, 20, "left");
                 var sp = new Sprite(bmp);
                 sp.x = 0; sp.y = 2;
                 this.addChild(sp);
