@@ -171,23 +171,14 @@
         });
     }
 
-    // hold boot until the save cache is warm (StorageManager cold reads are sync)
-    var ready = false, pendingBoot = null, _run = SceneManager.run.bind(SceneManager);
-    SceneManager.run = function (sc) {
-        stat("run() called this===closureSM:" + (this === SceneManager) + " ready=" + ready +
-             " stack:" + String(new Error().stack || "").replace(/\n/g, " << ").slice(0, 220));
-        if (ready) return _run(sc); pendingBoot = sc;
-    };
-    // who starts the render loop, and on what object?
-    var _ru = SceneManager.requestUpdate;
-    SceneManager.requestUpdate = function () {
-        if (!window.__ruLogged) {
-            window.__ruLogged = true;
-            stat("requestUpdate() 1st this===closureSM:" + (this === SceneManager) +
-                 " stack:" + String(new Error().stack || "").replace(/\n/g, " << ").slice(0, 260));
-        }
-        return _ru.apply(this, arguments);
-    };
+    // hold boot until the save cache is warm (StorageManager cold reads are sync).
+    // IMPORTANT: run on the CURRENT window.SceneManager at release time, not a
+    // reference bound now — the engine's global SceneManager identity can change
+    // between this script's evaluation and deviceready, and binding early made the
+    // render loop run on a stale object while scene logic used the live global.
+    var ready = false, pendingBoot = null, _origRun = SceneManager.run;
+    try { SceneManager.__iosMark = "EVAL"; } catch (e) {}
+    SceneManager.run = function (sc) { if (ready) return _origRun.call(this, sc); pendingBoot = sc; };
     function hookScenes() {
         function wrap(cls, methods) {
             if (typeof cls === "undefined" || !cls) return;
@@ -258,7 +249,12 @@
     function releaseBoot() {
         if (ready) return; ready = true;
         installNativeFunctions(); hookImages(); hookScenes(); monitor();
-        if (pendingBoot) { var s = pendingBoot; pendingBoot = null; _run(s); }
+        if (pendingBoot) {
+            var g = window.SceneManager, s = pendingBoot; pendingBoot = null;
+            stat("release: global===evalSM=" + (g === SceneManager) + " gMark=" + g.__iosMark);
+            g.run = _origRun;            // un-gate the live global
+            _origRun.call(g, s);         // start the loop on the CURRENT global
+        }
         [5000, 12000, 25000].forEach(function (ms) { setTimeout(probe.bind(null, ms / 1000 + "s"), ms); });
     }
     var imgStat = { err: 0, ok: 0, errURLs: {} };
