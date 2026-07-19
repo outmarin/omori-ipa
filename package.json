@@ -14,7 +14,8 @@
     "plugins": {
       "cordova-plugin-file": {},
       "cordova-plugin-insomnia": {},
-      "cordova-plugin-httpd": {}
+      "cordova-plugin-httpd": {},
+      "cordova-plugin-inappbrowser": {}
     }
   }
 }

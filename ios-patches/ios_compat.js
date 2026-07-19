@@ -119,9 +119,33 @@
             }).join(",");
         } catch (e) { return "?"; }
     }
-    window.addEventListener("resize", function () { setTimeout(relayout, 60); setTimeout(relayout, 300); });
-    window.addEventListener("orientationchange", function () { [100, 400, 900].forEach(function (m) { setTimeout(relayout, m); }); });
-    [400, 1000, 2000, 3500].forEach(function (m) { setTimeout(relayout, m); });
+    function relayoutSoon() { [50, 300, 800].forEach(function (m) { setTimeout(relayout, m); }); }
+    // The webview reports its real landscape size late on first launch (that's why
+    // minimising + reopening fixes the shift). Catch every settle signal we can.
+    ["resize", "orientationchange", "focus", "pageshow", "load"].forEach(function (ev) { window.addEventListener(ev, relayoutSoon); });
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") relayoutSoon(); });
+    document.addEventListener("resume", relayoutSoon, false); // Cordova foreground
+    if (window.visualViewport) { window.visualViewport.addEventListener("resize", relayoutSoon); window.visualViewport.addEventListener("scroll", relayoutSoon); }
+    [400, 1000, 2000, 3500, 6000, 10000].forEach(function (m) { setTimeout(relayout, m); });
+    // Watch for the dimensions actually changing (innerWidth or visualViewport) for the first ~30s.
+    (function () {
+        var lw = 0, lh = 0, n = 0;
+        var iv = setInterval(function () {
+            if (++n > 120) { clearInterval(iv); return; }
+            var w = (window.visualViewport && window.visualViewport.width) || window.innerWidth;
+            var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+            if (w !== lw || h !== lh) { lw = w; lh = h; relayout(); }
+        }, 250);
+    })();
+
+    // Title "ПОРТИРОВАЛИ" does window.open(url,'_blank').focus(); in WKWebView
+    // window.open returns null -> ".focus() of null" crash. Never return null.
+    var _open = window.open ? window.open.bind(window) : null;
+    window.open = function () {
+        var r = null;
+        try { if (_open) r = _open.apply(null, arguments); } catch (e) {}
+        return r || { focus: noop, blur: noop, close: noop, closed: false, postMessage: noop, location: { href: "" } };
+    };
 
     // capture real errors (engine hides them behind its red screen)
     window.addEventListener("error", function (ev) {
@@ -345,23 +369,49 @@
             }
         }, 300);
     }
-    // iOS: the per-letter message sound (SYS_text, played ~30x/sec) is silent
-    // because AudioStreaming re-fetches+re-decodes the ogg via stbvorbis on every
-    // playSe() — it can't keep up, so nothing ever finishes decoding. Route it
-    // through the STATIC-SE path (decode once, replay the cached buffer).
+    // iOS: the per-letter message sound (SYS_text, ~30x/sec) is silent because
+    // AudioStreaming (stbvorbis) re-fetches+re-decodes the ogg on every play and
+    // can't keep up. Decode SYS_text ONCE, keep the raw AudioBuffer, and play it
+    // through a fresh AudioBufferSourceNode each time (native WebAudio, rapid-safe).
     function fixLetterSound() {
         if (typeof SoundManager === "undefined" || SoundManager.__iosLetter) return;
         if (typeof SoundManager.playMessageSound !== "function") return; // YEP letter-sound plugin absent
         SoundManager.__iosLetter = true;
+        var abuf = null, actx = null, loader = null;
+        function ctx() { return (window.StreamWebAudio && StreamWebAudio._context) || (window.WebAudio && WebAudio._context) || null; }
+        function grab() {
+            try {
+                actx = ctx() || actx;
+                if (!loader && window.AudioManager && AudioManager.createBuffer) loader = AudioManager.createBuffer("se", "SYS_text");
+                if (loader && loader._chunks && loader._chunks[0] && loader._chunks[0].buffer) {
+                    abuf = loader._chunks[0].buffer;
+                    stat("letterSound: buffer ready dur=" + abuf.duration.toFixed(3) + " ctx=" + !!actx);
+                    return true;
+                }
+            } catch (e) { if (!window.__lsg) { window.__lsg = 1; stat("letterSound grab err: " + e.message); } }
+            return false;
+        }
+        var tries = 0, iv = setInterval(function () { if (grab() || ++tries > 80) clearInterval(iv); }, 400);
         SoundManager.playMessageSound = function () {
             try {
                 var se = (typeof $gameSystem !== "undefined" && $gameSystem.getMessageSound) ? $gameSystem.getMessageSound() : null;
-                if (se && se.name) AudioManager.playStaticSe(se);
-                if (!window.__letterLogged) { window.__letterLogged = true; stat("letterSound -> playStaticSe name=" + (se && se.name)); }
+                if (!se || !se.name) return;
+                if (abuf && actx) {
+                    var src = actx.createBufferSource();
+                    src.buffer = abuf;
+                    src.playbackRate.value = Math.max(0.25, (se.pitch || 100) / 100);
+                    var g = actx.createGain();
+                    var seVol = (AudioManager._seVolume != null ? AudioManager._seVolume : 100) / 100;
+                    g.gain.value = Math.max(0, Math.min(1, (se.volume != null ? se.volume : 100) / 100 * seVol));
+                    src.connect(g); g.connect(actx.destination);
+                    if (actx.state === "suspended" && actx.resume) actx.resume();
+                    src.start(0);
+                } else {
+                    AudioManager.playStaticSe(se); // fallback until the buffer is decoded
+                }
+                if (!window.__letterLogged) { window.__letterLogged = true; stat("letterSound play buf=" + !!abuf); }
             } catch (e) { if (!window.__letterErr) { window.__letterErr = 1; stat("letterSound err: " + e.message); } }
         };
-        // Warm the static cache so the very first letters aren't dropped mid-decode.
-        setTimeout(function () { try { AudioManager.loadStaticSe({ name: "SYS_text" }); stat("preloaded SYS_text (static)"); } catch (e) {} }, 4000);
     }
     function releaseBoot() {
         if (ready) return; ready = true;

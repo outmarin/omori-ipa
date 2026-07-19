@@ -17,6 +17,7 @@
     <preference name="AutoHideSplashScreen" value="true" />
 
     <platform name="ios">
+        <!-- ICONS -->
         <preference name="deployment-target" value="13.0" />
         <preference name="WKWebViewOnly" value="true" />
         <preference name="AllowUntrustedCerts" value="true" />

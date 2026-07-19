@@ -60,11 +60,28 @@ jobs:
           cp ios-patches/splashNano.png www/img/system/splashNano.png
           perl -0pi -e 's{splashGalv3,640,3,480}{splashGalv3,640,3,480|splashNano,300,3,0}' www/js/plugins.js
           grep -q splashNano www/js/plugins.js || { echo "splash inject failed"; exit 1; }
+          # App icon: flatten OMORI icon onto black (iOS icons must be opaque), then all sizes.
+          # If anything fails the <!-- ICONS --> marker stays a comment and the build still works.
+          if [ -f www/icon/icon.png ]; then
+            mkdir -p res/ios
+            ffmpeg -y -loglevel error -f lavfi -i color=black:s=1024x1024 -i www/icon/icon.png \
+              -filter_complex "[1]scale=1024:1024:flags=lanczos[fg];[0][fg]overlay=0:0,format=rgb24" \
+              -frames:v 1 res/ios/master.png || true
+            if [ -f res/ios/master.png ]; then
+              : > res/ios/icons.xml
+              for s in 20 29 40 58 60 76 80 87 120 152 167 180 1024; do
+                sips -z $s $s res/ios/master.png --out res/ios/icon-$s.png >/dev/null 2>&1 || true
+                echo "<icon src=\"res/ios/icon-$s.png\" width=\"$s\" height=\"$s\" />" >> res/ios/icons.xml
+              done
+              perl -0pi -e 'open(F,"res/ios/icons.xml"); local $/; my $i=<F>; close F; s{<!-- ICONS -->}{$i};' config.xml
+              grep -q 'res/ios/icon-1024' config.xml && echo "icons injected" || echo "icon inject skipped"
+            fi
+          fi
           # transcode webm cutscenes -> mp4
           shopt -s nullglob
           for f in www/movies/*.webm; do ffmpeg -y -loglevel error -i "$f" -c:v libx264 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 160k -movflags +faststart "${f%.webm}.mp4" && rm "$f"; done
           cordova platform add ios@7 --no-telemetry
-          cordova plugin add cordova-plugin-file cordova-plugin-insomnia cordova-plugin-httpd --no-telemetry
+          cordova plugin add cordova-plugin-file cordova-plugin-insomnia cordova-plugin-httpd cordova-plugin-inappbrowser --no-telemetry
           set -o pipefail
           cordova build ios --emulator --debug --no-telemetry 2>&1 | tail -50
           APP=$(find platforms/ios -maxdepth 5 -name "*.app" -path "*imulator*" | head -1)
