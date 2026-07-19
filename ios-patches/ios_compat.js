@@ -96,7 +96,18 @@
         var _ce = SceneManager.catchException;
         SceneManager.catchException = function (e) { stat("SM.catch: " + (e && e.message ? e.message : e) + " | " + String(e && e.stack || "").replace(/\n/g, " << ").slice(0, 350)); return _ce ? _ce.apply(this, arguments) : undefined; };
         var _frames = 0, _um = SceneManager.updateMain;
-        if (_um) SceneManager.updateMain = function () { _frames++; window.__iosFrames = _frames; return _um.apply(this, arguments); };
+        if (_um) SceneManager.updateMain = function () {
+            _frames++; window.__iosFrames = _frames;
+            if (_frames === 1 || (_frames === 30 && !window.__loopLogged)) {
+                window.__loopLogged = true;
+                try { stat("LOOP@" + _frames + " this===winSM:" + (this === window.SceneManager) +
+                    " this===closureSM:" + (this === SceneManager) +
+                    " thisScene:" + (this._scene && this._scene.constructor.name) +
+                    " winScene:" + (window.SceneManager._scene && window.SceneManager._scene.constructor.name) +
+                    " winSM===closureSM:" + (window.SceneManager === SceneManager)); } catch (e) {}
+            }
+            return _um.apply(this, arguments);
+        };
         // instrument changeScene: capture why it doesn't swap
         var _cs = SceneManager.changeScene;
         if (_cs) SceneManager.changeScene = function () {
