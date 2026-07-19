@@ -319,7 +319,7 @@
             var s = window.SceneManager._scene, n = s && s.constructor.name;
             if (!fired && n === "Scene_OmoriTitleScreen" && window.SceneManager._sceneStarted) {
                 fired = true; clearInterval(iv);
-                stat("CI: title up -> starting New Game in 4s (let intro settle)");
+                stat("CI: title up -> starting New Game in 9s (let intro settle)");
                 setTimeout(function () {
                     var s2 = window.SceneManager._scene;
                     try {
@@ -341,7 +341,7 @@
                         }
                         setTimeout(function () { stat("CI: post-newgame scene=" + (window.SceneManager._scene && window.SceneManager._scene.constructor.name)); }, 3000);
                     }, 2500);
-                }, 4000);
+                }, 9000);
             }
         }, 300);
     }
