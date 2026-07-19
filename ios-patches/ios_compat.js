@@ -105,7 +105,9 @@
                 window.__csState = "chg=" + this.isSceneChanging() +
                     " sc=" + (this._scene && this._scene.constructor.name) +
                     " nx=" + (this._nextScene && this._nextScene.constructor.name) +
-                    " busy=" + this.isCurrentSceneBusy();
+                    " busy=" + this.isCurrentSceneBusy() +
+                    " sameSM=" + (this === window.SceneManager) +
+                    " gnx=" + (window.SceneManager && window.SceneManager._nextScene && window.SceneManager._nextScene.constructor.name);
             } catch (e) { window.__csState = "err:" + e.message; }
             return _cs.apply(this, arguments);
         };
@@ -213,6 +215,18 @@
                 else if (changing && !busy) stat("STUCK-SWAP not-busy-but-no-swap nx=" + (SM._nextScene && SM._nextScene.constructor.name) + " f=" + (window.__iosFrames || 0));
                 else if (!SM._sceneStarted && !ready) stat("STUCK-START notReady first=" + firstNotReady());
                 else if (!SM._sceneStarted && ready) stat("STUCK-START ready-but-not-started (loop dead?) f=" + (window.__iosFrames || 0));
+            }
+            // Nudge via the ENGINE's own methods with explicit this=global SceneManager.
+            // If the loop's `this` is the wrong object, this swaps correctly (proper
+            // create + Graphics load sequencing). If not, it's a harmless no-op.
+            if (pending && ticks - stuckSince >= 8) {
+                try {
+                    var before = SM._scene && SM._scene.constructor.name;
+                    window.SceneManager.changeScene.call(window.SceneManager);
+                    window.SceneManager.updateScene.call(window.SceneManager);
+                    var after = window.SceneManager._scene && window.SceneManager._scene.constructor.name;
+                    if (before !== after) { stat("NUDGE " + before + " -> " + after); lastKey = null; }
+                } catch (e) { stat("nudge err: " + e.message); }
             }
         }, 250);
     }
